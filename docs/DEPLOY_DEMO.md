@@ -124,14 +124,16 @@ The app also caps usage, counted in the database: by default 40 AI requests a da
 
 ## Public access (optional)
 
-`DEMO_ACCESS="public"` in `deploy/.env`, then `docker compose up -d`, removes the site password. Know what that allows before you choose it: the sign-in page signs anyone in with one click as any demo account, **including the organization admin**, so a visitor can
+`DEMO_ACCESS="public"` in `deploy/.env`, then `docker compose up -d`, removes the site password. The sign-in page then signs anyone in with one click as any demo account, **including the organization admin**.
 
-- change a demo account's password (the current one, `demo1234`, is public) and lock everyone else out of it until the next reset;
-- deactivate members or change their roles;
+Set `PUBLIC_DEMO="true"` with it. The app then refuses every change to accounts, members, invitations and organizations (password, profile, roles, deactivation, invitations, organization name, new organizations), and the Settings and Team pages say so. Without it, one visitor can change a demo account's password (the current one, `demo1234`, is public) or deactivate members, and lock everyone else out until the next reset.
+
+Even with `PUBLIC_DEMO`, a visitor can still
+
 - use up the day's AI allowance;
-- post content or upload files that every later visitor sees.
+- post content, upload files, approve decisions or close cases that every later visitor sees.
 
-The nightly reset repairs all of it, but only at night. Switch back with `DEMO_ACCESS="password"`.
+The nightly reset repairs that, but only at night; run `./reset-demo.sh` to repair it sooner. Switch back with `DEMO_ACCESS="password"`.
 
 ## Rules for this demo
 

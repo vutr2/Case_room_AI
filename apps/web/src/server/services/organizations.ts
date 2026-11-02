@@ -3,6 +3,7 @@ import { lockRow, prisma, type TransactionClient } from "@ccr/database";
 import { z } from "zod";
 import type { SessionUser } from "../auth/session";
 import { can } from "../authz/permissions";
+import { assertNotPublicDemo } from "../demo-mode";
 import { NotFoundError, ValidationError } from "../errors";
 import { envLimit } from "../rate-limit";
 import { recordAudit } from "./audit";
@@ -61,6 +62,7 @@ export async function reserveMembershipSlot(tx: TransactionClient, identityId: s
  * Follows the same policy as public signup (`PUBLIC_SIGNUP`).
  */
 export async function createAdditionalOrganization(user: SessionUser, raw: z.input<typeof createOrganizationSchema>) {
+  assertNotPublicDemo();
   if (process.env.PUBLIC_SIGNUP === "false") {
     throw new ValidationError("Creating organizations is disabled on this deployment.");
   }

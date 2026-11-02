@@ -7,6 +7,7 @@ import type { SessionUser } from "../auth/session";
 import { appLink } from "../app-url";
 import { assertFormOrganization } from "../authz/organization-context";
 import { assertCan } from "../authz/permissions";
+import { assertNotPublicDemo } from "../demo-mode";
 import { emailEnabled, sendEmail } from "../email";
 import { invitationEmail } from "../email/templates";
 import { AppError, ForbiddenError, NotFoundError, RateLimitError, ValidationError } from "../errors";
@@ -61,6 +62,7 @@ export const inviteSchema = z.object({
  * failed email does not undo the invitation.
  */
 export async function inviteMember(user: SessionUser, raw: z.input<typeof inviteSchema>) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage", "Only organization admins can invite members.");
   const input = inviteSchema.parse(raw);
   assertFormOrganization(user, input.organizationId);
@@ -141,6 +143,7 @@ async function emailInvitation(
  * organizations (or unknown ids) cannot use it up.
  */
 export async function resendInvitation(user: SessionUser, invitationId: string) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage", "Only organization admins can send invitations.");
   if (!emailEnabled()) throw new ValidationError("Email delivery is not configured on this deployment. Copy the link instead.");
   await assertActiveAdmin(prisma, user, "Only organization admins can send invitations.");
@@ -159,6 +162,7 @@ export async function resendInvitation(user: SessionUser, invitationId: string) 
  * `acceptInvitation` touch the same row, so exactly one of them wins.
  */
 export async function revokeInvitation(user: SessionUser, invitationId: string) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage");
   await prisma.$transaction(async (tx) => {
     await lockRow(tx, "Organization", user.organizationId);
@@ -236,6 +240,7 @@ async function createInvitedMember(tx: TransactionClient, invitation: PendingInv
 
 /** Accept an invitation by creating a new account (the invited email has none yet). */
 export async function acceptInvitation(raw: z.input<typeof acceptInvitationSchema>) {
+  assertNotPublicDemo();
   const input = acceptInvitationSchema.parse(raw);
   const invitation = await getInvitation(input.token);
   if (!invitation) throw new ValidationError("This invitation is invalid or has expired.");
@@ -258,6 +263,7 @@ export async function acceptInvitation(raw: z.input<typeof acceptInvitationSchem
  * more organization. The invitation must have been sent to the account's email.
  */
 export async function joinOrganization(identityId: string, token: string) {
+  assertNotPublicDemo();
   const invitation = await getInvitation(token);
   if (!invitation) throw new ValidationError("This invitation is invalid or has expired.");
   const identity = await prisma.identity.findUnique({ where: { id: identityId } });
@@ -353,6 +359,7 @@ function activeAdminCount(tx: TransactionClient, organizationId: string) {
 }
 
 export async function changeMemberRole(user: SessionUser, memberId: string, role: UserRole) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage");
   if (!USER_ROLES.includes(role)) throw new ValidationError("Unknown role");
   await prisma.$transaction(async (tx) => {
@@ -385,6 +392,7 @@ export async function changeMemberRole(user: SessionUser, memberId: string, role
  * at their next request; open live connections close at the next heartbeat.
  */
 export async function deactivateMember(user: SessionUser, memberId: string) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage", "Only organization admins can deactivate members.");
   if (memberId === user.id) throw new ValidationError("You cannot deactivate your own access. Ask another admin to do it.");
   await prisma.$transaction(async (tx) => {
@@ -410,6 +418,7 @@ export async function deactivateMember(user: SessionUser, memberId: string) {
 
 /** Give a deactivated member their access back, with the role they had. */
 export async function reactivateMember(user: SessionUser, memberId: string) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage", "Only organization admins can reactivate members.");
   await prisma.$transaction(async (tx) => {
     await lockRow(tx, "Organization", user.organizationId);

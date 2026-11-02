@@ -3,6 +3,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ccr/
 import { USER_ROLE_LABELS } from "@ccr/types";
 import type { Metadata } from "next";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
+import { PublicDemoNotice } from "@/components/layout/public-demo-notice";
 import { TimeAgo } from "@/components/shared/misc";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { formatDate } from "@/lib/format";
@@ -24,6 +25,7 @@ export default async function TeamPage() {
   return (
     <PageContainer>
       <PageHeader title="Team" description={`${activeCount} active member${activeCount === 1 ? "" : "s"} of ${user.organizationName}. Access to each patient case is limited to its care team.`} />
+      <PublicDemoNotice />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
         <div className="overflow-x-auto rounded-xl border bg-card">

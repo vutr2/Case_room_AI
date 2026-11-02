@@ -8,6 +8,7 @@ import { BrainCircuitIcon, DatabaseIcon, FileLockIcon, ScrollTextIcon, ShieldChe
 import type { Metadata } from "next";
 import Link from "next/link";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
+import { PublicDemoNotice } from "@/components/layout/public-demo-notice";
 import { formatDate } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
 import { can } from "@/server/authz/permissions";
@@ -45,6 +46,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
   return (
     <PageContainer className="max-w-4xl">
       <PageHeader title="Settings" description="Your profile and password, organization, AI provider and safety configuration." />
+      <PublicDemoNotice />
       {password === "changed" && (
         <p role="status" className="rounded-md border border-approved-border bg-approved-soft px-3 py-2 text-[13px] text-approved">
           Your password was changed. Your other sessions were signed out.

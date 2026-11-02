@@ -7,6 +7,7 @@ import { consumePasswordCheck } from "../auth/limits";
 import { hashLinkToken, newLinkToken } from "../auth/tokens";
 import { assertFormOrganization } from "../authz/organization-context";
 import { assertCan } from "../authz/permissions";
+import { assertNotPublicDemo } from "../demo-mode";
 import { emailEnabled, EmailUnavailableError, sendEmail } from "../email";
 import { existingAccountEmail, passwordChangedEmail, passwordResetEmail, signupConfirmationEmail } from "../email/templates";
 import { ConflictError, RateLimitError, ValidationError } from "../errors";
@@ -261,6 +262,7 @@ export const changePasswordSchema = z.object({
 
 /** Change the password of the signed-in account. Other sessions are signed out. */
 export async function changePassword(user: SessionUser, raw: z.input<typeof changePasswordSchema>) {
+  assertNotPublicDemo();
   const input = changePasswordSchema.parse(raw);
   const blocked = consumePasswordCheck(user.identityId);
   if (blocked) throw new RateLimitError(blocked);
@@ -329,6 +331,7 @@ export const updateProfileSchema = z.object({
  * handle stays the same so existing @mentions keep working.
  */
 export async function updateProfile(user: SessionUser, raw: z.input<typeof updateProfileSchema>) {
+  assertNotPublicDemo();
   const input = updateProfileSchema.parse(raw);
   assertFormOrganization(user, input.organizationId);
   const next = { name: input.name, title: input.title || null, specialty: input.specialty || null };
@@ -359,6 +362,7 @@ export const renameOrganizationSchema = z.object({
 });
 
 export async function renameOrganization(user: SessionUser, raw: z.input<typeof renameOrganizationSchema>) {
+  assertNotPublicDemo();
   assertCan(user, "org.manage", "Only organization admins can rename the organization.");
   const input = renameOrganizationSchema.parse(raw);
   assertFormOrganization(user, input.organizationId);

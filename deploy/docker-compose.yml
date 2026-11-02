@@ -29,6 +29,8 @@ x-app-environment: &app-environment
   AI_REQUESTS_PER_USER_PER_MINUTE: ${AI_REQUESTS_PER_USER_PER_MINUTE:-4}
   AI_CONCURRENT_RUNS_PER_ORG: ${AI_CONCURRENT_RUNS_PER_ORG:-2}
   DEMO_LOGIN: "true"
+  # "true" with DEMO_ACCESS=public: account and organization changes are refused (docs/DEPLOY_DEMO.md).
+  PUBLIC_DEMO: ${PUBLIC_DEMO:-false}
   PUBLIC_SIGNUP: "false"
   EMAIL_TRANSPORT: ${EMAIL_TRANSPORT:-none}
   SMTP_URL: ${SMTP_URL:-}

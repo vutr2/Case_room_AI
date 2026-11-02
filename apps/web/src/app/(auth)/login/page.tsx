@@ -1,11 +1,15 @@
 import { prisma } from "@ccr/database";
 import type { Metadata } from "next";
 import { redirect } from "next/navigation";
+import { getI18n } from "@/i18n/server";
 import { safePath } from "@/lib/safe-path";
 import { getSessionUser } from "@/server/auth/session";
 import { LoginForm } from "./login-form";
 
-export const metadata: Metadata = { title: "Sign in" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("login.title") };
+}
 
 export default async function LoginPage({ searchParams }: { searchParams: Promise<{ callbackUrl?: string }> }) {
   const { callbackUrl } = await searchParams;

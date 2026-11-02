@@ -2,8 +2,8 @@ import "server-only";
 import { randomInt } from "node:crypto";
 import { prisma } from "@ccr/database";
 import type { CaseSpecialty, CaseStatus, PatientSex } from "@ccr/types";
-import { CASE_STATUS_LABELS } from "@ccr/types";
 import { z } from "zod";
+import { caseTextFor } from "@/i18n/translator-for";
 import type { SessionUser } from "../auth/session";
 import { accessibleCaseWhere, assertCaseAccess } from "../authz/case-access";
 import { assertFormOrganization } from "../authz/organization-context";
@@ -152,7 +152,7 @@ export async function createCase(user: SessionUser, rawInput: CreateCaseInput) {
         },
       },
     });
-    await postSystemMessage(tx, { caseRoomId: room.id, content: `${user.name} created this case room.`, event: "case.created" });
+    await postSystemMessage(tx, { caseRoomId: room.id, content: caseTextFor(user)("system.caseCreated", { name: user.name }), event: "case.created" });
     await recordAudit(tx, {
       organizationId: user.organizationId,
       caseRoomId: room.id,
@@ -182,11 +182,12 @@ export async function updateCaseStatus(user: SessionUser, caseRoomId: string, st
   assertCan(user, "case.manage");
   const room = await assertCaseAccess(user, caseRoomId);
   if (room.status === status) return room;
+  const caseText = caseTextFor(user);
   await prisma.$transaction(async (tx) => {
     await tx.caseRoom.update({ where: { id: caseRoomId }, data: { status } });
     await postSystemMessage(tx, {
       caseRoomId,
-      content: `${user.name} changed the case status from ${CASE_STATUS_LABELS[room.status]} to ${CASE_STATUS_LABELS[status]}.`,
+      content: caseText("system.caseStatus", { name: user.name, from: caseText(`enum.caseStatus.${room.status}`), to: caseText(`enum.caseStatus.${status}`) }),
       event: "case.status_changed",
     });
     await recordAudit(tx, {
@@ -229,7 +230,7 @@ export async function addCaseMembers(user: SessionUser, caseRoomId: string, user
       });
     }
     const names = toAdd.map((m) => `${m.name}${m.specialty ? ` (${m.specialty})` : ""}`).join(", ");
-    await postSystemMessage(tx, { caseRoomId, content: `${user.name} added ${names} to the care team.`, event: "case.member_added" });
+    await postSystemMessage(tx, { caseRoomId, content: caseTextFor(user)("system.membersAdded", { name: user.name, names }), event: "case.member_added" });
     await touchCaseRoom(tx, caseRoomId);
   });
   await realtime.touch(caseRoomId, ["members", "messages", "audit"], user.id);

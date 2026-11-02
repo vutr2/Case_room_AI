@@ -150,6 +150,8 @@ enum InvitationStatus {
 model Organization {
   id        String   @id @default(cuid())
   name      String
+  /// Language of AI output and account emails ("en" or "vi"). Each person picks their own interface language.
+  locale    String   @default("en")
   createdAt DateTime @default(now())
 
   users       User[]

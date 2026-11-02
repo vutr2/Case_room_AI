@@ -37,6 +37,7 @@ export async function loadCaseContext(
     where: { id: caseRoomId },
     include: {
       patient: true,
+      organization: { select: { locale: true } },
       // Deactivated members are not part of the working care team (no task suggestions, no mentions).
       members: { where: { user: { deactivatedAt: null } }, include: { user: true }, orderBy: { joinedAt: "asc" } },
       documents: { include: { uploadedBy: true }, orderBy: [{ documentDate: "asc" }, { createdAt: "asc" }] },
@@ -66,6 +67,7 @@ export async function loadCaseContext(
 
   const { patient } = room;
   return {
+    outputLanguage: room.organization.locale === "vi" ? "vi" : "en",
     patient: {
       id: patient.id,
       displayName: `${patient.firstName} ${patient.lastName}`,

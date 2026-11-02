@@ -19,6 +19,7 @@ export async function postMessageAction(caseRoomId: string, content: string) {
           question: aiQuestion,
           requester: { id: user.id, name: user.name },
           aiRunId,
+          organizationLocale: user.organizationLocale,
         }),
       );
     }

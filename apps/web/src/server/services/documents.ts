@@ -3,8 +3,9 @@ import { randomUUID } from "node:crypto";
 import { mergeMemoryFacts, removeDocumentFromMemory, toUserMessage } from "@ccr/ai";
 import { prisma } from "@ccr/database";
 import type { DocumentType } from "@ccr/types";
-import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES } from "@ccr/types";
+import { DOCUMENT_TYPES } from "@ccr/types";
 import { z } from "zod";
+import { caseTextFor, lowerLabel } from "@/i18n/translator-for";
 import type { SessionUser } from "../auth/session";
 import { assertCaseAccess } from "../authz/case-access";
 import { assertCan } from "../authz/permissions";
@@ -99,7 +100,7 @@ export async function createDocument(
     });
     await postSystemMessage(tx, {
       caseRoomId,
-      content: `${user.name} uploaded ${DOCUMENT_TYPE_LABELS[document.type].toLowerCase()} "${document.title}".`,
+      content: caseTextFor(user)("system.documentUploaded", { name: user.name, type: lowerLabel(caseTextFor(user)(`enum.documentType.${document.type}`)), title: document.title }),
       event: "document.uploaded",
       refType: "document",
       refId: document.id,

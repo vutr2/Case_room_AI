@@ -14,6 +14,7 @@ import {
   requestPasswordReset,
   requestSignup,
   resetPassword,
+  updateOrganizationLocale,
   updateProfile,
 } from "./accounts";
 import { listOrganizationMembers } from "./cases";
@@ -251,6 +252,14 @@ describe("deactivating members", () => {
     expect(outcome.errors[0]).toBeInstanceOf(ForbiddenError);
     expect(await prisma.user.count({ where: { organizationId: riverside.organization.id, role: "ORG_ADMIN", deactivatedAt: null } })).toBe(1);
   });
+
+  it("writes the emails in the language the person uses", async () => {
+    const nurse = riverside.nurse;
+    await requestPasswordReset({ email: nurse.email }, "vi");
+    expect(memoryOutbox().at(-1)!.subject).toBe("Đặt lại mật khẩu Clinical Case Room");
+    await resetPassword({ token: tokenFromEmail(nurse.email, "/reset-password"), password: "brand-new-password" }, "vi");
+    expect(memoryOutbox().at(-1)!.html).toContain('<html lang="vi">');
+  });
 });
 
 describe("invitation emails", () => {
@@ -313,5 +322,22 @@ describe("profile and organization name", () => {
     expect((await prisma.organization.findUniqueOrThrow({ where: { id: riverside.organization.id } })).name).toBe("Riverside Renamed");
     const audit = await prisma.auditEvent.findFirstOrThrow({ where: { action: "org.renamed" } });
     expect(audit.metadata).toMatchObject({ to: "Riverside Renamed" });
+  });
+
+  it("lets admins change the organization's language, which its invitation emails then use", async () => {
+    const { organization } = riverside;
+    await expect(updateOrganizationLocale(riverside.proposer, { organizationId: organization.id, locale: "vi" })).rejects.toBeInstanceOf(ForbiddenError);
+    await expect(updateOrganizationLocale(riverside.adminA, { organizationId: organization.id, locale: "fr" as "vi" })).rejects.toThrow();
+    await updateOrganizationLocale(riverside.adminA, { organizationId: organization.id, locale: "vi" });
+    expect((await prisma.organization.findUniqueOrThrow({ where: { id: organization.id } })).locale).toBe("vi");
+    const audit = await prisma.auditEvent.findFirstOrThrow({ where: { action: "org.locale_changed" } });
+    expect(audit.metadata).toEqual({ from: "en", to: "vi", toName: "Tiếng Việt" });
+
+    // Signed in again: the session carries the organization's new language.
+    const admin = await sessionUserFor(riverside.adminA.id);
+    await inviteMember(admin, { organizationId: organization.id, email: "dong-nghiep@hospital.test", role: "SPECIALIST" });
+    const email = memoryOutbox().at(-1)!;
+    expect(email.subject).toContain("đã mời bạn tham gia");
+    expect(email.text).toContain("với vai trò Bác sĩ chuyên khoa");
   });
 });

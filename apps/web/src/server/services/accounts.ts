@@ -1,6 +1,7 @@
 import "server-only";
 import { hashPassword, lockRow, prisma, verifyPassword, type TransactionClient } from "@ccr/database";
 import { z } from "zod";
+import { LOCALE_NAMES, LOCALES, type Locale } from "@/i18n/config";
 import { appLink } from "../app-url";
 import type { SessionUser } from "../auth/session";
 import { consumePasswordCheck } from "../auth/limits";
@@ -72,12 +73,12 @@ export function parseSignupRequest(raw: z.input<typeof signupRequestSchema>) {
  * created yet. An address that already has an account gets an "already have an
  * account" email instead. Never throws: failures are logged.
  */
-export async function deliverSignupRequest(input: z.output<typeof signupRequestSchema>): Promise<void> {
+export async function deliverSignupRequest(input: z.output<typeof signupRequestSchema>, locale?: Locale): Promise<void> {
   try {
     const existing = await prisma.identity.findUnique({ where: { email: input.email }, select: { name: true } });
     if (existing) {
       await sendEmail(
-        existingAccountEmail({ to: input.email, name: existing.name, signInUrl: appLink("/login"), resetUrl: appLink("/forgot-password") }),
+        existingAccountEmail({ to: input.email, name: existing.name, signInUrl: appLink("/login"), resetUrl: appLink("/forgot-password"), locale }),
       );
       return;
     }
@@ -92,6 +93,7 @@ export async function deliverSignupRequest(input: z.output<typeof signupRequestS
         organizationName: input.organizationName,
         url: appLink(`/signup/confirm/${token}`),
         expiresInHours: SIGNUP_LINK_HOURS,
+        locale,
       }),
     );
   } catch (error) {
@@ -100,8 +102,8 @@ export async function deliverSignupRequest(input: z.output<typeof signupRequestS
 }
 
 /** Both parts at once (tests and scripts). */
-export async function requestSignup(raw: z.input<typeof signupRequestSchema>): Promise<void> {
-  await deliverSignupRequest(parseSignupRequest(raw));
+export async function requestSignup(raw: z.input<typeof signupRequestSchema>, locale?: Locale): Promise<void> {
+  await deliverSignupRequest(parseSignupRequest(raw), locale);
 }
 
 /** The pending signup a confirmation link belongs to, or null when it is unknown, used or expired. */
@@ -192,7 +194,7 @@ export function parsePasswordResetRequest(raw: z.input<typeof passwordResetReque
 }
 
 /** Part 2 (after the response): email a one-time reset link if the address has an account. Never throws. */
-export async function deliverPasswordReset(email: string): Promise<void> {
+export async function deliverPasswordReset(email: string, locale?: Locale): Promise<void> {
   try {
     const identity = await prisma.identity.findUnique({ where: { email }, select: { id: true, name: true } });
     if (!identity) return;
@@ -200,16 +202,16 @@ export async function deliverPasswordReset(email: string): Promise<void> {
     await prisma.passwordResetToken.create({
       data: { identityId: identity.id, tokenHash, expiresAt: new Date(Date.now() + RESET_LINK_MINUTES * 60_000) },
     });
-    await sendEmail(passwordResetEmail({ to: email, name: identity.name, url: appLink(`/reset-password/${token}`), expiresInMinutes: RESET_LINK_MINUTES }));
+    await sendEmail(passwordResetEmail({ to: email, name: identity.name, url: appLink(`/reset-password/${token}`), expiresInMinutes: RESET_LINK_MINUTES, locale }));
   } catch (error) {
     console.error("[accounts] password reset email not sent", error instanceof Error ? error.message : error);
   }
 }
 
 /** Both parts at once (tests and scripts). */
-export async function requestPasswordReset(raw: z.input<typeof passwordResetRequestSchema>): Promise<void> {
+export async function requestPasswordReset(raw: z.input<typeof passwordResetRequestSchema>, locale?: Locale): Promise<void> {
   const { email } = parsePasswordResetRequest(raw);
-  await deliverPasswordReset(email);
+  await deliverPasswordReset(email, locale);
 }
 
 /** The account a reset link belongs to, or null when it is unknown, used or expired. */
@@ -229,8 +231,8 @@ export const resetPasswordSchema = z.object({
 
 const INVALID_RESET_LINK = "This reset link is invalid, was already used or has expired. Request a new one.";
 
-/** Set a new password with a reset link. Signs out every existing session of the account. */
-export async function resetPassword(raw: z.input<typeof resetPasswordSchema>) {
+/** Set a new password with a reset link. Signs out every existing session of the account. The notice email is in `locale`. */
+export async function resetPassword(raw: z.input<typeof resetPasswordSchema>, locale?: Locale) {
   const input = resetPasswordSchema.parse(raw);
   const tokenHash = hashLinkToken(input.token);
   // Cheap check first: unknown, used or expired links never reach password hashing.
@@ -249,7 +251,7 @@ export async function resetPassword(raw: z.input<typeof resetPasswordSchema>) {
       return writePassword(tx, pending.identityId, passwordHash, "account.password_reset");
     });
   });
-  await notifyPasswordChanged(identity);
+  await notifyPasswordChanged(identity, locale);
   return identity;
 }
 
@@ -260,8 +262,8 @@ export const changePasswordSchema = z.object({
   newPassword: passwordSchema,
 });
 
-/** Change the password of the signed-in account. Other sessions are signed out. */
-export async function changePassword(user: SessionUser, raw: z.input<typeof changePasswordSchema>) {
+/** Change the password of the signed-in account. Other sessions are signed out. The notice email is in `locale`. */
+export async function changePassword(user: SessionUser, raw: z.input<typeof changePasswordSchema>, locale?: Locale) {
   assertNotPublicDemo();
   const input = changePasswordSchema.parse(raw);
   const blocked = consumePasswordCheck(user.identityId);
@@ -281,7 +283,7 @@ export async function changePassword(user: SessionUser, raw: z.input<typeof chan
     }
     return writePassword(tx, user.identityId, passwordHash, "account.password_changed");
   });
-  await notifyPasswordChanged(identity);
+  await notifyPasswordChanged(identity, locale);
   return identity;
 }
 
@@ -306,10 +308,10 @@ async function writePassword(tx: TransactionClient, identityId: string, password
   return identity;
 }
 
-async function notifyPasswordChanged(identity: { email: string; name: string }) {
+async function notifyPasswordChanged(identity: { email: string; name: string }, locale: Locale | undefined) {
   if (!emailEnabled()) return;
   try {
-    await sendEmail(passwordChangedEmail({ to: identity.email, name: identity.name, resetUrl: appLink("/forgot-password") }));
+    await sendEmail(passwordChangedEmail({ to: identity.email, name: identity.name, resetUrl: appLink("/forgot-password"), locale }));
   } catch (error) {
     console.error("[accounts] password change notice not sent", error instanceof Error ? error.message : error);
   }
@@ -380,6 +382,40 @@ export async function renameOrganization(user: SessionUser, raw: z.input<typeof 
       resourceType: "Organization",
       resourceId: user.organizationId,
       metadata: { from: organization.name, to: input.name },
+    });
+  });
+}
+
+export const updateOrganizationLocaleSchema = z.object({
+  organizationId: z.string().min(1),
+  locale: z.enum(LOCALES),
+});
+
+const ORG_LANGUAGE_ADMIN_ONLY = "Only organization admins can change the organization's language.";
+
+/**
+ * The organization's language: AI drafts, the text the system writes into
+ * cases and invitation emails use it. Each person still picks their own
+ * interface language.
+ */
+export async function updateOrganizationLocale(user: SessionUser, raw: z.input<typeof updateOrganizationLocaleSchema>) {
+  assertNotPublicDemo();
+  assertCan(user, "org.manage", ORG_LANGUAGE_ADMIN_ONLY);
+  const input = updateOrganizationLocaleSchema.parse(raw);
+  assertFormOrganization(user, input.organizationId);
+  await prisma.$transaction(async (tx) => {
+    await lockRow(tx, "Organization", user.organizationId);
+    await assertActiveAdmin(tx, user, ORG_LANGUAGE_ADMIN_ONLY);
+    const organization = await tx.organization.findUniqueOrThrow({ where: { id: user.organizationId }, select: { locale: true } });
+    if (organization.locale === input.locale) return;
+    await tx.organization.update({ where: { id: user.organizationId }, data: { locale: input.locale } });
+    await recordAudit(tx, {
+      organizationId: user.organizationId,
+      userId: user.id,
+      action: "org.locale_changed",
+      resourceType: "Organization",
+      resourceId: user.organizationId,
+      metadata: { from: organization.locale, to: input.locale, toName: LOCALE_NAMES[input.locale] },
     });
   });
 }

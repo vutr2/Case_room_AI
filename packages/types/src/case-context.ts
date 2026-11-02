@@ -36,7 +36,14 @@ export interface CaseContext {
   requester: ContextRequester | null;
   /** ISO timestamp of "now", so outputs are reproducible in tests. */
   now: string;
+  /**
+   * Language of the AI's prose: the organization's language (default English).
+   * Quotes from records stay verbatim in the record's own language.
+   */
+  outputLanguage?: OutputLanguage;
 }
+
+export type OutputLanguage = "en" | "vi";
 
 export interface ContextPatient {
   id: string;

@@ -1,22 +1,25 @@
 import { Badge } from "@ccr/ui/components/badge";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@ccr/ui/components/card";
-import { USER_ROLE_LABELS } from "@ccr/types";
 import type { Metadata } from "next";
 import { PageContainer, PageHeader } from "@/components/layout/page-header";
 import { PublicDemoNotice } from "@/components/layout/public-demo-notice";
 import { TimeAgo } from "@/components/shared/misc";
 import { UserAvatar } from "@/components/shared/user-avatar";
-import { formatDate } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
 import { requireUser } from "@/server/auth/session";
 import { can } from "@/server/authz/permissions";
 import { emailEnabled } from "@/server/email";
 import { invitationLink, listInvitations, listMembers } from "@/server/services/team";
 import { InvitationLinkButtons, InviteForm, MemberAccessButton, RevokeInvitationButton, RoleSelect } from "./team-admin";
 
-export const metadata: Metadata = { title: "Team" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("nav.team") };
+}
 
 export default async function TeamPage() {
   const user = await requireUser();
+  const { t, fmt } = await getI18n();
   const isAdmin = can(user, "org.manage");
   const [members, invitations] = await Promise.all([listMembers(user), listInvitations(user)]);
   const activeCount = members.filter((member) => !member.deactivatedAt).length;
@@ -24,7 +27,7 @@ export default async function TeamPage() {
 
   return (
     <PageContainer>
-      <PageHeader title="Team" description={`${activeCount} active member${activeCount === 1 ? "" : "s"} of ${user.organizationName}. Access to each patient case is limited to its care team.`} />
+      <PageHeader title={t("nav.team")} description={t.plural("team.description", activeCount, { organization: user.organizationName })} />
       <PublicDemoNotice />
 
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
@@ -32,11 +35,11 @@ export default async function TeamPage() {
           <table className="w-full text-[13px]">
             <thead className="border-b bg-muted/40 text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               <tr>
-                <th className="px-4 py-2.5">Member</th>
-                <th className="px-3 py-2.5">Role</th>
-                <th className="px-3 py-2.5 text-right">Cases</th>
-                <th className="px-4 py-2.5 text-right">Last active</th>
-                {isAdmin && <th className="px-4 py-2.5 text-right">Access</th>}
+                <th className="px-4 py-2.5">{t("team.col.member")}</th>
+                <th className="px-3 py-2.5">{t("teamAdmin.role")}</th>
+                <th className="px-3 py-2.5 text-right">{t("team.col.cases")}</th>
+                <th className="px-4 py-2.5 text-right">{t("team.col.lastActive")}</th>
+                {isAdmin && <th className="px-4 py-2.5 text-right">{t("team.col.access")}</th>}
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -48,10 +51,10 @@ export default async function TeamPage() {
                       <div className="min-w-0">
                         <div className="font-medium">
                           {member.name}
-                          {member.id === user.id && <span className="font-normal text-muted-foreground"> (you)</span>}
+                          {member.id === user.id && <span className="font-normal text-muted-foreground"> {t("team.you")}</span>}
                           {member.deactivatedAt && (
                             <Badge variant="outline" className="ml-2">
-                              Deactivated {formatDate(member.deactivatedAt)}
+                              {t("team.deactivatedOn", { date: fmt.date(member.deactivatedAt) })}
                             </Badge>
                           )}
                         </div>
@@ -65,12 +68,12 @@ export default async function TeamPage() {
                     {isAdmin && member.id !== user.id && !member.deactivatedAt ? (
                       <RoleSelect memberId={member.id} memberName={member.name} role={member.role} />
                     ) : (
-                      <Badge variant={member.role === "ORG_ADMIN" ? "solid" : "secondary"}>{USER_ROLE_LABELS[member.role]}</Badge>
+                      <Badge variant={member.role === "ORG_ADMIN" ? "solid" : "secondary"}>{t(`enum.role.${member.role}`)}</Badge>
                     )}
                   </td>
                   <td className="px-3 py-2.5 text-right tabular-nums">{member._count.caseMemberships}</td>
                   <td className="px-4 py-2.5 text-right text-xs text-muted-foreground">
-                    {member.lastLoginAt ? <TimeAgo date={member.lastLoginAt} /> : "Never"}
+                    {member.lastLoginAt ? <TimeAgo date={member.lastLoginAt} /> : t("team.never")}
                   </td>
                   {isAdmin && (
                     <td className="px-4 py-2.5 text-right">
@@ -87,11 +90,9 @@ export default async function TeamPage() {
           <div className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Invite a member</CardTitle>
+                <CardTitle>{t("team.invite")}</CardTitle>
                 <CardDescription>
-                  {canEmail
-                    ? "Emails the invitee a secure link that expires in 14 days."
-                    : "Creates a secure link that expires in 14 days. Email is not configured, so share the link yourself."}
+                  {canEmail ? t("team.inviteEmail") : t("team.inviteLink")}
                 </CardDescription>
               </CardHeader>
               <CardContent>
@@ -100,17 +101,17 @@ export default async function TeamPage() {
             </Card>
             <Card>
               <CardHeader>
-                <CardTitle>Pending invitations</CardTitle>
+                <CardTitle>{t("team.pending")}</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {invitations.length === 0 && <p className="text-[13px] text-muted-foreground">No pending invitations.</p>}
+                {invitations.length === 0 && <p className="text-[13px] text-muted-foreground">{t("team.noPending")}</p>}
                 {invitations.map((invitation) => (
                   <div key={invitation.id} className="flex items-center justify-between gap-2 rounded-lg border px-3 py-2">
                     <div className="min-w-0">
                       <div className="truncate text-[13px] font-medium">{invitation.email}</div>
                       <div className="text-xs text-muted-foreground">
-                        {USER_ROLE_LABELS[invitation.role]}
-                        {invitation.specialty ? ` · ${invitation.specialty}` : ""} · expires {formatDate(invitation.expiresAt)}
+                        {t(`enum.role.${invitation.role}`)}
+                        {invitation.specialty ? ` · ${invitation.specialty}` : ""} · {t("team.expires", { date: fmt.date(invitation.expiresAt) })}
                       </div>
                     </div>
                     <div className="flex shrink-0 items-center">
@@ -125,8 +126,8 @@ export default async function TeamPage() {
         ) : (
           <Card className="h-fit">
             <CardHeader>
-              <CardTitle>Membership</CardTitle>
-              <CardDescription>Organization admins invite members and manage roles. Case access is granted per case by the care team.</CardDescription>
+              <CardTitle>{t("team.membership")}</CardTitle>
+              <CardDescription>{t("team.membershipHint")}</CardDescription>
             </CardHeader>
           </Card>
         )}

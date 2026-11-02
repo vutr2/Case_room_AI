@@ -2,6 +2,9 @@ import { describe, expect, it } from "vitest";
 import { can, isClinicalReviewer, ROLE_PERMISSIONS } from "../authz/permissions";
 import { deriveDecisionStatus } from "./decision-rules";
 import { parseMentions } from "@/lib/mentions";
+import { en } from "@/i18n/messages/en";
+import { vi } from "@/i18n/messages/vi";
+import { makeTranslator } from "@/i18n/translate";
 import { describeActivity, shortName } from "@/lib/activity";
 
 describe("deriveDecisionStatus (human-in-the-loop)", () => {
@@ -57,12 +60,14 @@ describe("mentions", () => {
 
 describe("activity descriptions", () => {
   it("renders human-readable sentences", () => {
+    const t = makeTranslator(en, "en");
     expect(shortName("Dr. Minh Nguyen")).toBe("Dr. Nguyen");
+    expect(shortName("BS. Trần Minh Khoa")).toBe("BS. Khoa");
+    const upload = { action: "document.uploaded", actorType: "USER" as const, metadata: { title: "Path", documentType: "PATHOLOGY_REPORT" }, user: { name: "Dr. Minh Nguyen" } };
+    expect(describeActivity(upload, t).text).toBe("Dr. Nguyen uploaded a pathology report “Path”.");
     expect(
-      describeActivity({ action: "document.uploaded", actorType: "USER", metadata: { title: "Path", documentType: "PATHOLOGY_REPORT" }, user: { name: "Dr. Minh Nguyen" } }).text,
-    ).toBe("Dr. Nguyen uploaded a pathology report “Path”.");
-    expect(
-      describeActivity({ action: "decision.approved", actorType: "USER", metadata: { number: 12, title: "Treatment Plan" }, user: { name: "Dr. Emily Smith" } }).text,
+      describeActivity({ action: "decision.approved", actorType: "USER", metadata: { number: 12, title: "Treatment Plan" }, user: { name: "Dr. Emily Smith" } }, t).text,
     ).toBe("Dr. Smith approved Decision #12 (Treatment Plan).");
+    expect(describeActivity(upload, makeTranslator(vi, "vi")).text).toBe("Dr. Nguyen đã tải lên kết quả giải phẫu bệnh “Path”.");
   });
 });

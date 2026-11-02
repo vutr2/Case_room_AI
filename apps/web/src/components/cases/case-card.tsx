@@ -1,6 +1,10 @@
-import { CASE_SPECIALTY_LABELS, PATIENT_SEX_LABELS, type CaseSpecialty, type CaseStatus, type PatientSex } from "@ccr/types";
+"use client";
+
+import type { CaseSpecialty, CaseStatus, PatientSex } from "@ccr/types";
 import { CheckSquareIcon, FileTextIcon, ScaleIcon } from "lucide-react";
 import Link from "next/link";
+import { useI18n } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
 import { ageFromDob } from "@/lib/format";
 import { CaseStatusBadge, SyntheticPatientBadge } from "../shared/badges";
 import { TimeAgo } from "../shared/misc";
@@ -19,6 +23,7 @@ export interface CaseCardData {
 
 export function CaseCard({ room }: { room: CaseCardData }) {
   const { patient } = room;
+  const { t } = useI18n();
   return (
     <Link
       href={`/cases/${room.id}`}
@@ -32,7 +37,7 @@ export function CaseCard({ room }: { room: CaseCardData }) {
             </span>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">
-            {ageFromDob(patient.dateOfBirth)}y · {PATIENT_SEX_LABELS[patient.sex]} · {patient.syntheticMedicalRecordNumber}
+            {t("patient.ageSexMrn", { age: ageFromDob(patient.dateOfBirth), sex: t(`enum.sex.${patient.sex}`), mrn: patient.syntheticMedicalRecordNumber })}
           </div>
         </div>
         <CaseStatusBadge status={room.status} />
@@ -40,22 +45,22 @@ export function CaseCard({ room }: { room: CaseCardData }) {
 
       <div className="mt-3 line-clamp-2 text-[13px] font-medium text-foreground/90">{patient.primaryDiagnosis}</div>
       <div className="mt-0.5 line-clamp-1 text-xs text-muted-foreground">
-        {room.title} · {CASE_SPECIALTY_LABELS[room.specialty]}
+        {room.title} · {t(`enum.specialty.${room.specialty}`)}
       </div>
 
       <div className="mt-4 flex items-center justify-between gap-2 border-t pt-3">
         <AvatarStack users={room.members.map((m) => m.user)} max={5} size="sm" />
         <div className="flex items-center gap-3 text-xs text-muted-foreground">
-          <span className="inline-flex items-center gap-1" title="Documents">
+          <span className="inline-flex items-center gap-1" title={t("cases.documents")}>
             <FileTextIcon className="size-3.5" />
             {room._count.documents}
           </span>
-          <span className="inline-flex items-center gap-1" title="Open tasks">
+          <span className="inline-flex items-center gap-1" title={t("cases.openTasks")}>
             <CheckSquareIcon className="size-3.5" />
             {room._count.tasks}
           </span>
           {room._count.decisions > 0 && (
-            <span className="inline-flex items-center gap-1 font-medium text-amber-700" title="Decisions awaiting approval">
+            <span className="inline-flex items-center gap-1 font-medium text-amber-700" title={t("cases.decisionsAwaiting")}>
               <ScaleIcon className="size-3.5" />
               {room._count.decisions}
             </span>
@@ -64,9 +69,7 @@ export function CaseCard({ room }: { room: CaseCardData }) {
       </div>
       <div className="mt-2 flex items-center justify-between text-[11px] text-muted-foreground">
         <SyntheticPatientBadge compact className="scale-95" />
-        <span>
-          Updated <TimeAgo date={room.updatedAt} />
-        </span>
+        <span>{rich(t("cases.updated"), { time: <TimeAgo date={room.updatedAt} /> })}</span>
       </div>
     </Link>
   );

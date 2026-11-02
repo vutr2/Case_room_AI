@@ -3,19 +3,14 @@
 import { Button } from "@ccr/ui/components/button";
 import { Kbd } from "@ccr/ui/components/misc";
 import { cn } from "@ccr/ui/lib/utils";
-import { USER_ROLE_LABELS } from "@ccr/types";
 import { ArrowUpIcon, SparklesIcon } from "lucide-react";
 import { useMemo, useRef, useState, type KeyboardEvent } from "react";
+import { useI18n } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
 import type { UserSummary } from "@/lib/dto";
 import { AIAvatar, UserAvatar } from "../shared/user-avatar";
 
-const SUGGESTIONS = [
-  "@AI summarize the pathology findings",
-  "@AI what is still pending?",
-  "@AI what are the current risks we should watch?",
-  "@AI what information is missing for tumor board?",
-  "@AI why was surgery not chosen?",
-];
+const SUGGESTIONS = ["composer.suggest.1", "composer.suggest.2", "composer.suggest.3", "composer.suggest.4", "composer.suggest.5"] as const;
 
 interface MentionOption {
   key: string;
@@ -45,24 +40,25 @@ export function Composer({
   const [mention, setMention] = useState<{ start: number; query: string } | null>(null);
   const [activeIndex, setActiveIndex] = useState(0);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const { t } = useI18n();
 
   const options = useMemo<MentionOption[]>(() => {
     const all: MentionOption[] = [
-      ...(canAskAI ? [{ key: "ai", handle: "AI", label: "AI case assistant", detail: "Answers from the case record, with sources" }] : []),
+      ...(canAskAI ? [{ key: "ai", handle: "AI", label: t("avatar.ai"), detail: t("composer.aiDetail") }] : []),
       ...members
         .filter((member) => member.id !== currentUserId)
         .map((member) => ({
           key: member.id,
           handle: member.handle,
           label: member.name,
-          detail: member.specialty ?? USER_ROLE_LABELS[member.role],
+          detail: member.specialty ?? t(`enum.role.${member.role}`),
           user: member,
         })),
     ];
     if (!mention) return [];
     const query = mention.query.toLowerCase();
     return all.filter((option) => option.handle.toLowerCase().startsWith(query) || option.label.toLowerCase().includes(query)).slice(0, 7);
-  }, [mention, members, currentUserId, canAskAI]);
+  }, [mention, members, currentUserId, canAskAI, t]);
 
   function updateMention(text: string, caret: number) {
     const before = text.slice(0, caret);
@@ -134,7 +130,7 @@ export function Composer({
     <div className="relative">
       {mention && options.length > 0 && (
         <div className="absolute bottom-full left-0 z-20 mb-2 w-80 overflow-hidden rounded-lg border bg-popover p-1 shadow-lg">
-          <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground">Mention</div>
+          <div className="px-2 py-1 text-[11px] font-medium text-muted-foreground">{t("composer.mention")}</div>
           {options.map((option, index) => (
             <button
               key={option.key}
@@ -160,7 +156,7 @@ export function Composer({
 
       {value.length === 0 && canAskAI && (
         <div className="mb-2 flex flex-wrap gap-1.5">
-          {SUGGESTIONS.map((suggestion) => (
+          {SUGGESTIONS.map((key) => t(key)).map((suggestion) => (
             <button
               key={suggestion}
               type="button"
@@ -195,23 +191,23 @@ export function Composer({
           }}
           onKeyDown={onKeyDown}
           onClick={(event) => updateMention(value, event.currentTarget.selectionStart)}
-          placeholder={disabled ? "You do not have permission to post in this case." : "Message the care team. Mention @AI to ask the case assistant, or @Name to notify a colleague…"}
+          placeholder={disabled ? t("composer.noPermission") : t("composer.placeholder")}
           className="field-sizing-content max-h-48 min-h-9 flex-1 resize-none bg-transparent px-2 py-1.5 text-[13.5px] leading-relaxed outline-none placeholder:text-muted-foreground/80"
         />
-        <Button size="icon-sm" variant={mentionsAI ? "ai" : "default"} onClick={() => void send()} disabled={!value.trim() || sending || disabled} aria-label="Send message">
+        <Button size="icon-sm" variant={mentionsAI ? "ai" : "default"} onClick={() => void send()} disabled={!value.trim() || sending || disabled} aria-label={t("composer.send")}>
           <ArrowUpIcon />
         </Button>
       </div>
       <div className="mt-1.5 flex items-center justify-between px-1 text-[11px] text-muted-foreground">
         <span>
           {mentionsAI ? (
-            <span className="text-ai">The AI will answer in this thread using only the case record, with sources.</span>
+            <span className="text-ai">{t("composer.aiWillAnswer")}</span>
           ) : (
-            "AI answers are drafts for clinicians to verify. They never replace clinical judgment."
+            t("composer.aiDrafts")
           )}
         </span>
         <span className="hidden items-center gap-1 sm:flex">
-          <Kbd>Enter</Kbd> send · <Kbd>Shift</Kbd>+<Kbd>Enter</Kbd> new line
+          {rich(t("composer.keys"), { enter: <Kbd>Enter</Kbd>, shift: <Kbd>Shift</Kbd> })}
         </span>
       </div>
     </div>

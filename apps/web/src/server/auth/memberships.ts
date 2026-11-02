@@ -21,6 +21,8 @@ export interface SessionUser {
   title: string | null;
   organizationId: string;
   organizationName: string;
+  /** Language of the active organization: AI output, emails, and the interface until the person picks one. */
+  organizationLocale: string;
   /** Every organization the person is active in, for the organization switcher. */
   organizations: Array<{ id: string; name: string; role: UserRole }>;
   /** Identity.sessionVersion this session was issued for (a password change raises it). */
@@ -34,7 +36,7 @@ export async function loadSessionUser(
 ): Promise<SessionUser | null> {
   const memberships = await prisma.user.findMany({
     where: { identityId: identity.id, deactivatedAt: null },
-    include: { organization: { select: { name: true } } },
+    include: { organization: { select: { name: true, locale: true } } },
   });
   const active = pickActiveMembership(memberships, requestedOrganization);
   if (!active) return null;
@@ -49,6 +51,7 @@ export async function loadSessionUser(
     title: active.title,
     organizationId: active.organizationId,
     organizationName: active.organization.name,
+    organizationLocale: active.organization.locale,
     organizations: memberships
       .map((m) => ({ id: m.organizationId, name: m.organization.name, role: m.role }))
       .sort((a, b) => a.name.localeCompare(b.name)),

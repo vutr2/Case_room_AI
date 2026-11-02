@@ -1,8 +1,9 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
 import { hashPassword, lockRow, prisma, type DbClient, type TransactionClient } from "@ccr/database";
-import { USER_ROLE_LABELS, USER_ROLES, type UserRole } from "@ccr/types";
+import { USER_ROLES, type UserRole } from "@ccr/types";
 import { z } from "zod";
+import { i18nFor, organizationLocale } from "@/i18n/translator-for";
 import type { SessionUser } from "../auth/session";
 import { appLink } from "../app-url";
 import { assertFormOrganization } from "../authz/organization-context";
@@ -118,15 +119,18 @@ async function emailInvitation(
   invitation: { email: string; role: UserRole; token: string; expiresAt: Date },
 ): Promise<InvitationEmailResult> {
   if (!emailEnabled()) return { emailed: false, emailProblem: "Email delivery is not configured on this deployment." };
+  // In the organization's language: the invitee has no interface language yet.
+  const locale = organizationLocale(user.organizationLocale);
   try {
     await sendEmail(
       invitationEmail({
         to: invitation.email,
         organizationName: user.organizationName,
         inviterName: user.name,
-        roleLabel: USER_ROLE_LABELS[invitation.role],
+        roleLabel: i18nFor(locale).t(`enum.role.${invitation.role}`),
         url: invitationLink(invitation.token),
         expiresAt: invitation.expiresAt,
+        locale,
       }),
     );
     return { emailed: true };

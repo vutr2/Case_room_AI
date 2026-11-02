@@ -1,7 +1,7 @@
 "use client";
 
 import { useSyncExternalStore } from "react";
-import { formatDateTime, formatRelative } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 
 /**
  * Client clock as an external store. The server snapshot is null, so the
@@ -19,22 +19,24 @@ const onClient = () => true;
 
 /** Relative timestamp ("5m ago"), refreshed every minute. */
 export function TimeAgo({ date, className }: { date: string | Date; className?: string }) {
+  const { fmt } = useI18n();
   const iso = typeof date === "string" ? date : date.toISOString();
   const minute = useSyncExternalStore(subscribeToMinute, currentMinute, serverSnapshot);
   return (
-    <time dateTime={iso} title={minute === null ? undefined : formatDateTime(iso)} className={className} suppressHydrationWarning>
-      {minute === null ? " " : formatRelative(iso)}
+    <time dateTime={iso} title={minute === null ? undefined : fmt.dateTime(iso)} className={className} suppressHydrationWarning>
+      {minute === null ? " " : fmt.relative(iso)}
     </time>
   );
 }
 
 /** Absolute local date-time. */
 export function LocalDateTime({ date, className }: { date: string | Date; className?: string }) {
+  const { fmt } = useI18n();
   const iso = typeof date === "string" ? date : date.toISOString();
   const client = useSyncExternalStore(subscribeNever, onClient, serverSnapshot);
   return (
     <time dateTime={iso} className={className} suppressHydrationWarning>
-      {client ? formatDateTime(iso) : " "}
+      {client ? fmt.dateTime(iso) : " "}
     </time>
   );
 }

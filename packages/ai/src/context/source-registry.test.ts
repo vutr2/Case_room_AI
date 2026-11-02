@@ -92,6 +92,14 @@ describe("verifyQuote", () => {
   it("rejects trivially short quotes", () => {
     expect(verifyQuote(text, "SMA")).toBe(false);
   });
+  it("matches Vietnamese text whether diacritics are precomposed or decomposed", () => {
+    const source = "Kết luận: khối u gan phải kích thước 4,2 cm.".normalize("NFD");
+    const quote = "khối u gan phải kích thước 4,2 cm".normalize("NFC");
+    expect(quote).not.toBe(quote.normalize("NFD"));
+    expect(verifyQuote(source, quote)).toBe(true);
+    expect(verifyQuote(source.normalize("NFC"), quote.normalize("NFD"))).toBe(true);
+    expect(verifyQuote(source, "khối u gan trái kích thước 4,2 cm")).toBe(false);
+  });
 });
 
 describe("numberInlineCitations", () => {

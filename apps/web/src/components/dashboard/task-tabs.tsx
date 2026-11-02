@@ -3,6 +3,7 @@
 import { cn } from "@ccr/ui/lib/utils";
 import { CheckCircle2Icon } from "lucide-react";
 import { useState, type ReactNode } from "react";
+import { useI18n } from "@/i18n/client";
 
 /** Client-side tab switcher for pre-rendered task lists. */
 export function TaskTabs({
@@ -11,6 +12,7 @@ export function TaskTabs({
   tabs: Array<{ key: string; label: string; count: number; tone?: "danger"; content: ReactNode }>;
 }) {
   const [active, setActive] = useState(tabs[0]?.key);
+  const { t } = useI18n();
   const current = tabs.find((tab) => tab.key === active) ?? tabs[0];
   return (
     <div>
@@ -43,7 +45,7 @@ export function TaskTabs({
         ) : (
           <div className="flex flex-col items-center gap-1.5 py-8 text-center text-[13px] text-muted-foreground">
             <CheckCircle2Icon className="size-5 text-approved" />
-            Nothing here. You are all caught up.
+            {t("taskTabs.empty")}
           </div>
         )}
       </div>

@@ -12,6 +12,7 @@ import {
   SparklesIcon,
 } from "lucide-react";
 import Link from "next/link";
+import { getI18n } from "@/i18n/server";
 import { describeActivity, type ActivityKind } from "@/lib/activity";
 import { TimeAgo } from "../shared/misc";
 
@@ -37,11 +38,12 @@ export interface ActivityItem {
   caseRoom?: { id: string; patient: { firstName: string; lastName: string } } | null;
 }
 
-export function ActivityFeed({ items, showCase = true, compact = false }: { items: ActivityItem[]; showCase?: boolean; compact?: boolean }) {
+export async function ActivityFeed({ items, showCase = true, compact = false }: { items: ActivityItem[]; showCase?: boolean; compact?: boolean }) {
+  const { t } = await getI18n();
   return (
     <ol className="relative space-y-0">
       {items.map((item, index) => {
-        const { text, kind } = describeActivity(item);
+        const { text, kind } = describeActivity(item, t);
         const style = KIND_STYLE[kind];
         return (
           <li key={item.id} className="relative flex gap-3 pb-4 last:pb-0">
@@ -52,8 +54,8 @@ export function ActivityFeed({ items, showCase = true, compact = false }: { item
             <div className="min-w-0 flex-1 pt-0.5">
               <div className={cn("leading-snug text-foreground/90", compact ? "text-[12.5px]" : "text-[13px]")}>{text}</div>
               <div className="mt-0.5 flex items-center gap-1.5 text-[11px] text-muted-foreground">
-                {item.actorType === "AI" && <span className="font-medium text-ai">AI</span>}
-                {item.actorType === "SYSTEM" && <span className="font-medium">System</span>}
+                {item.actorType === "AI" && <span className="font-medium text-ai">{t("activity.actorAI")}</span>}
+                {item.actorType === "SYSTEM" && <span className="font-medium">{t("activity.actorSystem")}</span>}
                 {item.actorType !== "USER" && <span>·</span>}
                 <TimeAgo date={item.createdAt} />
                 {showCase && item.caseRoom && (

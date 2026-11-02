@@ -7,11 +7,12 @@ import { Label } from "@ccr/ui/components/label";
 import { Spinner } from "@ccr/ui/components/misc";
 import { NativeSelect } from "@ccr/ui/components/native-select";
 import { Textarea } from "@ccr/ui/components/textarea";
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS, type TaskPriority } from "@ccr/types";
+import { TASK_PRIORITIES, type TaskPriority } from "@ccr/types";
 import { CheckSquareIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/client";
 import type { UserSummary } from "@/lib/dto";
 import { createTaskAction } from "@/server/actions/tasks";
 
@@ -49,6 +50,7 @@ export function TaskDialog({
   const [dueDate, setDueDate] = useState(inDays(2));
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { t } = useI18n();
 
   function submit() {
     setError(null);
@@ -65,7 +67,7 @@ export function TaskDialog({
         setError(result.error);
         return;
       }
-      toast.success("Task created");
+      toast.success(t("taskDialog.created"));
       onOpenChange(false);
       router.refresh();
     });
@@ -73,28 +75,28 @@ export function TaskDialog({
 
   return (
     <Dialog open={open} onOpenChange={(value) => (pending ? undefined : onOpenChange(value))}>
-      <DialogContent>
+      <DialogContent closeLabel={t("common.close")}>
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <CheckSquareIcon className="size-4 text-primary" />
-            New task
+            {t("taskDialog.title")}
           </DialogTitle>
-          <DialogDescription>{prefill?.sourceMessageId ? "Created from a discussion message; the message will be linked." : "Assign a follow-up to a member of the care team."}</DialogDescription>
+          <DialogDescription>{prefill?.sourceMessageId ? t("taskDialog.fromMessage") : t("taskDialog.assign")}</DialogDescription>
         </DialogHeader>
         <div className="space-y-4">
           <div className="space-y-1.5">
-            <Label htmlFor="task-title">Title</Label>
-            <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Order molecular testing" />
+            <Label htmlFor="task-title">{t("upload.docTitle")}</Label>
+            <Input id="task-title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("taskDialog.titlePlaceholder")} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="task-description">Details</Label>
+            <Label htmlFor="task-description">{t("taskDialog.details")}</Label>
             <Textarea id="task-description" value={description} onChange={(e) => setDescription(e.target.value)} className="min-h-16" />
           </div>
           <div className="grid gap-3 sm:grid-cols-3">
             <div className="space-y-1.5">
-              <Label htmlFor="task-assignee">Owner</Label>
+              <Label htmlFor="task-assignee">{t("taskDialog.owner")}</Label>
               <NativeSelect id="task-assignee" value={assigneeId} onChange={(e) => setAssigneeId(e.target.value)}>
-                <option value="">Unassigned</option>
+                <option value="">{t("followUp.unassigned")}</option>
                 {members.map((member) => (
                   <option key={member.id} value={member.id}>
                     {member.name}
@@ -103,17 +105,17 @@ export function TaskDialog({
               </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="task-priority">Priority</Label>
+              <Label htmlFor="task-priority">{t("taskDialog.priority")}</Label>
               <NativeSelect id="task-priority" value={priority} onChange={(e) => setPriority(e.target.value as TaskPriority)}>
                 {TASK_PRIORITIES.map((value) => (
                   <option key={value} value={value}>
-                    {TASK_PRIORITY_LABELS[value]}
+                    {t(`enum.taskPriority.${value}`)}
                   </option>
                 ))}
               </NativeSelect>
             </div>
             <div className="space-y-1.5">
-              <Label htmlFor="task-due">Due date</Label>
+              <Label htmlFor="task-due">{t("taskDialog.due")}</Label>
               <Input id="task-due" type="date" value={dueDate} onChange={(e) => setDueDate(e.target.value)} />
             </div>
           </div>
@@ -121,11 +123,11 @@ export function TaskDialog({
         </div>
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={submit} disabled={pending}>
             {pending && <Spinner />}
-            Create task
+            {t("taskDialog.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

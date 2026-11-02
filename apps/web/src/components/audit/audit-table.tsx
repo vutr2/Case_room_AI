@@ -3,8 +3,8 @@ import { cn } from "@ccr/ui/lib/utils";
 import type { ActorType } from "@ccr/types";
 import { BotIcon, CogIcon } from "lucide-react";
 import Link from "next/link";
+import { getI18n } from "@/i18n/server";
 import { describeActivity } from "@/lib/activity";
-import { formatDateTime } from "@/lib/format";
 import { UserAvatar } from "../shared/user-avatar";
 
 export interface AuditRow {
@@ -36,26 +36,27 @@ function MetadataCell({ metadata }: { metadata: unknown }) {
 }
 
 /** Read-only rendering of append-only audit events (no edit or delete affordances by design). */
-export function AuditTable({ rows, showCase = false }: { rows: AuditRow[]; showCase?: boolean }) {
+export async function AuditTable({ rows, showCase = false }: { rows: AuditRow[]; showCase?: boolean }) {
+  const { t, fmt } = await getI18n();
   return (
     <div className="overflow-x-auto rounded-xl border bg-card">
       <table className="w-full text-[12.5px]">
         <thead className="border-b bg-muted/40 text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
           <tr>
-            <th className="px-4 py-2.5 whitespace-nowrap">Time</th>
-            <th className="px-3 py-2.5">Actor</th>
-            <th className="px-3 py-2.5">Event</th>
-            {showCase && <th className="px-3 py-2.5">Case</th>}
-            <th className="px-3 py-2.5">Action</th>
-            <th className="px-3 py-2.5">Details</th>
+            <th className="px-4 py-2.5 whitespace-nowrap">{t("audit.time")}</th>
+            <th className="px-3 py-2.5">{t("audit.actor")}</th>
+            <th className="px-3 py-2.5">{t("audit.event")}</th>
+            {showCase && <th className="px-3 py-2.5">{t("audit.case")}</th>}
+            <th className="px-3 py-2.5">{t("audit.action")}</th>
+            <th className="px-3 py-2.5">{t("audit.details")}</th>
           </tr>
         </thead>
         <tbody className="divide-y">
           {rows.map((row) => {
-            const { text } = describeActivity(row);
+            const { text } = describeActivity(row, t);
             return (
               <tr key={row.id} className="align-top hover:bg-accent/30">
-                <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums">{formatDateTime(row.createdAt)}</td>
+                <td className="px-4 py-2.5 whitespace-nowrap text-muted-foreground tabular-nums">{fmt.dateTime(row.createdAt)}</td>
                 <td className="px-3 py-2.5">
                   <div className="flex items-center gap-2 whitespace-nowrap">
                     {row.actorType === "AI" ? (
@@ -67,13 +68,13 @@ export function AuditTable({ rows, showCase = false }: { rows: AuditRow[]; showC
                         <CogIcon className="size-3" />
                       </span>
                     ) : (
-                      <UserAvatar user={{ id: row.userId ?? row.user?.name ?? "?", name: row.user?.name ?? "Unknown" }} size="xs" />
+                      <UserAvatar user={{ id: row.userId ?? row.user?.name ?? "?", name: row.user?.name ?? t("audit.unknown") }} size="xs" />
                     )}
                     <span className={cn(row.actorType === "AI" && "font-medium text-ai")}>
-                      {row.actorType === "AI" ? "AI" : row.actorType === "SYSTEM" ? "System" : (row.user?.name ?? "Unknown")}
+                      {row.actorType === "AI" ? t("activity.actorAI") : row.actorType === "SYSTEM" ? t("activity.actorSystem") : (row.user?.name ?? t("audit.unknown"))}
                     </span>
                   </div>
-                  {row.actorType !== "USER" && row.user && <div className="mt-0.5 pl-7 text-[11px] text-muted-foreground">for {row.user.name}</div>}
+                  {row.actorType !== "USER" && row.user && <div className="mt-0.5 pl-7 text-[11px] text-muted-foreground">{t("audit.onBehalf", { name: row.user.name })}</div>}
                 </td>
                 <td className="max-w-md px-3 py-2.5 leading-snug">{text}</td>
                 {showCase && (
@@ -83,7 +84,7 @@ export function AuditTable({ rows, showCase = false }: { rows: AuditRow[]; showC
                         {row.caseRoom.patient.firstName} {row.caseRoom.patient.lastName}
                       </Link>
                     ) : (
-                      <span className="text-muted-foreground">Organization</span>
+                      <span className="text-muted-foreground">{t("audit.organization")}</span>
                     )}
                   </td>
                 )}

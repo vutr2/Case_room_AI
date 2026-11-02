@@ -42,3 +42,27 @@ test("settings show the active AI provider and what the application actually gua
   await expect(page.getByText(/answers without a verifiable source are marked low confidence/)).toBeVisible();
   await expect(page.getByText(/This reduces prompt-injection risk; it cannot rule it out/)).toBeVisible();
 });
+
+test("an admin sets the organization's language, which members who have not picked their own then see", async ({ signIn }) => {
+  const admin = await signIn("admin@riverside.demo");
+  const brooks = await signIn("brooks@riverside.demo");
+  const language = (page: typeof admin) => page.getByRole("combobox", { name: /^(Language|Ngôn ngữ)$/ });
+  try {
+    await admin.goto("/settings");
+    await language(admin).selectOption("vi");
+    await expect(admin.getByText("Organization language changed to Tiếng Việt")).toBeVisible();
+    await brooks.goto("/dashboard");
+    await expect(brooks.locator("html")).toHaveAttribute("lang", "vi");
+    await expect(brooks.locator("aside").getByRole("link", { name: "Ca bệnh" })).toBeVisible();
+    // Members see the language but cannot change it.
+    await brooks.goto("/settings");
+    await expect(brooks.getByText("Tiếng Việt", { exact: true })).toBeVisible();
+    await expect(language(brooks)).toHaveCount(0);
+    await admin.goto("/settings/audit");
+    await expect(admin.getByText(/changed the organization's language to Tiếng Việt|đổi ngôn ngữ của tổ chức thành Tiếng Việt/).first()).toBeVisible();
+  } finally {
+    await admin.goto("/settings");
+    await language(admin).selectOption("en");
+    await expect(admin.locator("html")).toHaveAttribute("lang", "en");
+  }
+});

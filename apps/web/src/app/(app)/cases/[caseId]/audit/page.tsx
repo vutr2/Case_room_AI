@@ -3,22 +3,25 @@ import { cn } from "@ccr/ui/lib/utils";
 import { LockIcon } from "lucide-react";
 import Link from "next/link";
 import { AuditTable } from "@/components/audit/audit-table";
+import type { MessageKey } from "@/i18n/messages/en";
+import { getI18n } from "@/i18n/server";
 import { loadCasePage } from "@/server/case-page";
 
-const FILTERS = [
-  { key: "", label: "All" },
-  { key: "ai.", label: "AI" },
-  { key: "decision.", label: "Decisions" },
-  { key: "document.", label: "Documents" },
-  { key: "task.", label: "Tasks" },
-  { key: "brief.", label: "Briefs" },
-  { key: "case.", label: "Case" },
-] as const;
+const FILTERS: ReadonlyArray<{ key: string; label: MessageKey }> = [
+  { key: "", label: "auditFilter.all" },
+  { key: "ai.", label: "auditFilter.ai" },
+  { key: "decision.", label: "auditFilter.decisions" },
+  { key: "document.", label: "auditFilter.documents" },
+  { key: "task.", label: "auditFilter.tasks" },
+  { key: "brief.", label: "auditFilter.briefs" },
+  { key: "case.", label: "auditFilter.case" },
+];
 
 export default async function CaseAuditPage({ params, searchParams }: { params: Promise<{ caseId: string }>; searchParams: Promise<{ filter?: string }> }) {
   const { caseId } = await loadCasePage(params);
   const { filter = "" } = await searchParams;
   const active = FILTERS.find((f) => f.key === filter)?.key ?? "";
+  const { t } = await getI18n();
 
   const rows = await prisma.auditEvent.findMany({
     where: { caseRoomId: caseId, ...(active ? { action: { startsWith: active } } : {}) },
@@ -31,12 +34,12 @@ export default async function CaseAuditPage({ params, searchParams }: { params: 
     <div className="mx-auto max-w-6xl space-y-5 px-6 py-6 lg:px-8">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Audit log</h2>
-          <p className="text-[13px] text-muted-foreground">Every upload, AI action, decision, approval and task change in this case, with the acting human.</p>
+          <h2 className="text-base font-semibold">{t("auditPage.title")}</h2>
+          <p className="text-[13px] text-muted-foreground">{t("auditPage.caseIntro")}</p>
         </div>
         <div className="inline-flex shrink-0 items-center gap-1.5 rounded-full border bg-card px-3 py-1 text-xs text-muted-foreground">
           <LockIcon className="size-3.5" />
-          Append-only: the database rejects edits and deletions
+          {t("auditPage.appendOnlyLong")}
         </div>
       </div>
 
@@ -50,7 +53,7 @@ export default async function CaseAuditPage({ params, searchParams }: { params: 
               active === f.key ? "border-primary bg-primary/10 text-primary" : "bg-card text-muted-foreground hover:text-foreground",
             )}
           >
-            {f.label}
+            {t(f.label)}
           </Link>
         ))}
       </div>

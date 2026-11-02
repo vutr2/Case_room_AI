@@ -1,4 +1,4 @@
-import type { BriefSection, CaseContext, ContextDocument, SectionsContent } from "@ccr/types";
+import type { BriefSection, CaseContext, ContextDocument, OutputLanguage, SectionsContent } from "@ccr/types";
 import { HANDOFF_SECTIONS, TUMOR_BOARD_SECTIONS, USER_ROLE_LABELS } from "@ccr/types";
 import { numberInlineCitations } from "../context/citations";
 import { formatCaseRecord, quoted, type CaseRecordBlocks } from "../context/format-context";
@@ -15,6 +15,7 @@ import {
   missingInformationPrompt,
   timelinePrompt,
   tumorBoardPrompt,
+  withOutputLanguage,
 } from "../prompts/tasks";
 import type { LLMClient, PromptBlock } from "../providers/llm-client";
 import {
@@ -42,6 +43,18 @@ import {
 } from "./types";
 
 const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+/** Notes the application adds to an answer's limitations, in the answer's language. */
+const ANSWER_NOTES: Record<OutputLanguage, { noSource: string; dropped: (count: number) => string }> = {
+  en: {
+    noSource: "No verifiable source in the case record was cited for this answer.",
+    dropped: (count) => `${count} citation${count === 1 ? "" : "s"} that did not point to evidence in the case record ${count === 1 ? "was" : "were"} removed.`,
+  },
+  vi: {
+    noSource: "Câu trả lời này không trích dẫn nguồn nào có thể kiểm chứng trong hồ sơ ca bệnh.",
+    dropped: (count) => `Đã loại bỏ ${count} trích dẫn không trỏ tới bằng chứng trong hồ sơ ca bệnh.`,
+  },
+};
 
 /** CaseAIProvider backed by a real LLM (Anthropic, OpenAI, ...). */
 export class LLMCaseAIProvider implements CaseAIProvider {
@@ -78,7 +91,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "case_summary",
         ...this.request(blocks),
-        prompt: caseSummaryPrompt(ctx),
+        prompt: withOutputLanguage(ctx, caseSummaryPrompt(ctx)),
         schema: llmCaseSummarySchema,
         schemaName: "case_summary",
       });
@@ -125,7 +138,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "timeline",
         ...this.request(blocks),
-        prompt: timelinePrompt(documents, keys),
+        prompt: withOutputLanguage(ctx, timelinePrompt(documents, keys)),
         schema: llmTimelineSchema,
         schemaName: "timeline_events",
         effort: "low",
@@ -158,10 +171,13 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "case_question",
         ...this.request(blocks),
-        prompt: caseQuestionPrompt({
-          question: question.text,
-          requester: question.requester,
-        }),
+        prompt: withOutputLanguage(
+          ctx,
+          caseQuestionPrompt({
+            question: question.text,
+            requester: question.requester,
+          }),
+        ),
         schema: llmCaseAnswerSchema,
         schemaName: "case_answer",
       });
@@ -172,15 +188,12 @@ export class LLMCaseAIProvider implements CaseAIProvider {
 
       let confidence = data.confidence;
       const limitations = [data.limitations.trim()];
+      const notes = ANSWER_NOTES[ctx.outputLanguage ?? "en"];
       if (inline.sources.length === 0 && confidence !== "insufficient") {
         confidence = "low";
-        limitations.push("No verifiable source in the case record was cited for this answer.");
+        limitations.push(notes.noSource);
       }
-      if (dropped > 0) {
-        limitations.push(
-          `${dropped} citation${dropped === 1 ? "" : "s"} that did not point to evidence in the case record ${dropped === 1 ? "was" : "were"} removed.`,
-        );
-      }
+      if (dropped > 0) limitations.push(notes.dropped(dropped));
 
       return {
         output: {
@@ -202,7 +215,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "missing_information",
         ...this.request(blocks),
-        prompt: missingInformationPrompt(ctx),
+        prompt: withOutputLanguage(ctx, missingInformationPrompt(ctx)),
         schema: llmMissingInformationSchema,
         schemaName: "missing_information",
         effort: "low",
@@ -218,7 +231,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "handoff",
         ...this.request(blocks),
-        prompt: handoffPrompt(ctx),
+        prompt: withOutputLanguage(ctx, handoffPrompt(ctx)),
         schema: llmHandoffSchema,
         schemaName: "patient_handoff",
       });
@@ -237,7 +250,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "tumor_board_brief",
         ...this.request(blocks),
-        prompt: tumorBoardPrompt(),
+        prompt: withOutputLanguage(ctx, tumorBoardPrompt()),
         schema: llmTumorBoardSchema,
         schemaName: "tumor_board_brief",
         effort: "high",
@@ -260,7 +273,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "memory_facts",
         ...this.request(blocks),
-        prompt: memoryFactsPrompt(document, key),
+        prompt: withOutputLanguage(ctx, memoryFactsPrompt(document, key)),
         schema: llmMemoryFactsSchema,
         schemaName: "memory_facts",
         effort: "low",
@@ -282,7 +295,7 @@ export class LLMCaseAIProvider implements CaseAIProvider {
       const response = await this.llm.generateStructured({
         task: "follow_up_tasks",
         ...this.request(blocks),
-        prompt: followUpTasksPrompt({ decisionKey: `DEC${decision.number}`, teamList }),
+        prompt: withOutputLanguage(ctx, followUpTasksPrompt({ decisionKey: `DEC${decision.number}`, teamList })),
         schema: llmFollowUpTasksSchema,
         schemaName: "follow_up_tasks",
         effort: "low",

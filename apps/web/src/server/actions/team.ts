@@ -3,6 +3,7 @@
 import type { UserRole } from "@ccr/types";
 import { revalidatePath } from "next/cache";
 import type { z } from "zod";
+import { localizeServerMessage } from "@/i18n/server";
 import { runAction } from "../action-result";
 import { requireUser } from "../auth/session";
 import {
@@ -20,7 +21,8 @@ export async function inviteMemberAction(input: z.input<typeof inviteSchema>) {
     const user = await requireUser();
     const { inviteUrl, delivery } = await inviteMember(user, input);
     revalidatePath("/team");
-    return { inviteUrl, delivery };
+    // Shown on the form, so it follows the interface language like errors do.
+    return { inviteUrl, delivery: delivery.emailed ? delivery : { ...delivery, emailProblem: await localizeServerMessage(delivery.emailProblem) } };
   });
 }
 

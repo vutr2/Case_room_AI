@@ -1,8 +1,10 @@
+"use client";
+
 import { cn } from "@ccr/ui/lib/utils";
 import type { TaskPriority, TaskStatus } from "@ccr/types";
 import { SparklesIcon } from "lucide-react";
 import Link from "next/link";
-import { dueLabel, formatShortDate } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { TaskPriorityBadge } from "../shared/badges";
 import { UserAvatar } from "../shared/user-avatar";
 import { TaskStatusToggle } from "./task-status-toggle";
@@ -19,9 +21,10 @@ export interface TaskRowData {
 }
 
 export function DueChip({ dueDate, done }: { dueDate: Date | string | null; done?: boolean }) {
-  const due = dueLabel(dueDate);
+  const { t, fmt } = useI18n();
+  const due = fmt.due(dueDate);
   if (!due || !dueDate) return null;
-  if (done) return <span className="text-[11px] whitespace-nowrap text-muted-foreground">Due {formatShortDate(dueDate)}</span>;
+  if (done) return <span className="text-[11px] whitespace-nowrap text-muted-foreground">{t("due.on", { date: fmt.shortDate(dueDate) })}</span>;
   return (
     <span
       className={cn(
@@ -37,6 +40,7 @@ export function DueChip({ dueDate, done }: { dueDate: Date | string | null; done
 /** Compact task row with an inline status toggle (dashboard, tasks page). */
 export function TaskRow({ task, showCase = true, canManage = true }: { task: TaskRowData; showCase?: boolean; canManage?: boolean }) {
   const done = task.status === "DONE";
+  const { t } = useI18n();
   return (
     <div className="flex items-start gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/60">
       <TaskStatusToggle taskId={task.id} status={task.status} disabled={!canManage} />
@@ -47,7 +51,7 @@ export function TaskRow({ task, showCase = true, canManage = true }: { task: Tas
           <DueChip dueDate={task.dueDate} done={done} />
           {task.createdByAI && (
             <span className="inline-flex items-center gap-0.5 text-[11px] text-ai">
-              <SparklesIcon className="size-3" /> AI-suggested
+              <SparklesIcon className="size-3" /> {t("tasks.aiSuggested")}
             </span>
           )}
           {showCase && task.caseRoom && (

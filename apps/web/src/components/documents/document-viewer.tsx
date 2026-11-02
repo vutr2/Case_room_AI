@@ -3,10 +3,9 @@
 import { Button } from "@ccr/ui/components/button";
 import { Sheet, SheetContent, SheetDescription, SheetHeader, SheetTitle } from "@ccr/ui/components/sheet";
 import type { DocumentType, ProcessingStatus, TimelineEventType } from "@ccr/types";
-import { TIMELINE_EVENT_TYPE_LABELS } from "@ccr/types";
 import { CalendarClockIcon, DownloadIcon, SparklesIcon } from "lucide-react";
 import { usePathname, useRouter } from "next/navigation";
-import { formatDate } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { DocumentTypeBadge, ProcessingBadge } from "../shared/badges";
 
 export interface ViewerDocument {
@@ -27,10 +26,11 @@ export interface ViewerDocument {
 export function DocumentViewer({ caseId, document }: { caseId: string; document: ViewerDocument | null }) {
   const router = useRouter();
   const pathname = usePathname();
+  const { t, fmt } = useI18n();
 
   return (
     <Sheet open={Boolean(document)} onOpenChange={(open) => !open && router.replace(pathname, { scroll: false })}>
-      <SheetContent className="sm:max-w-3xl">
+      <SheetContent closeLabel={t("common.close")} className="sm:max-w-3xl">
         {document && (
           <>
             <SheetHeader>
@@ -40,14 +40,14 @@ export function DocumentViewer({ caseId, document }: { caseId: string; document:
               </div>
               <SheetTitle className="text-lg">{document.title}</SheetTitle>
               <SheetDescription>
-                Dated {formatDate(document.documentDate)} · uploaded by {document.uploadedBy}
+                {t("viewer.meta", { date: fmt.date(document.documentDate), name: document.uploadedBy })}
                 {document.fileName ? ` · ${document.fileName}` : ""}
               </SheetDescription>
               <div className="flex gap-2 pt-1">
                 <Button variant="outline" size="xs" asChild>
                   <a href={`/api/cases/${caseId}/documents/${document.id}/file`} target="_blank" rel="noreferrer">
                     <DownloadIcon />
-                    Original file
+                    {t("viewer.original")}
                   </a>
                 </Button>
               </div>
@@ -57,22 +57,22 @@ export function DocumentViewer({ caseId, document }: { caseId: string; document:
                 <div className="border-b bg-ai-soft/40 px-6 py-3">
                   <div className="mb-2 flex items-center gap-1.5 text-xs font-medium text-ai">
                     <SparklesIcon className="size-3.5" />
-                    AI extracted {document.timelineEvents.length} timeline event{document.timelineEvents.length === 1 ? "" : "s"} from this document
+                    {t.plural("viewer.extracted", document.timelineEvents.length)}
                   </div>
                   <ul className="space-y-1">
                     {document.timelineEvents.map((event) => (
                       <li key={event.id} className="flex items-center gap-2 text-[13px]">
                         <CalendarClockIcon className="size-3.5 text-muted-foreground" />
-                        <span className="text-muted-foreground tabular-nums">{formatDate(event.date, { year: false })}</span>
+                        <span className="text-muted-foreground tabular-nums">{fmt.date(event.date, { year: false })}</span>
                         <span className="font-medium">{event.title}</span>
-                        <span className="text-xs text-muted-foreground">· {TIMELINE_EVENT_TYPE_LABELS[event.eventType]}</span>
+                        <span className="text-xs text-muted-foreground">· {t(`enum.timelineType.${event.eventType}`)}</span>
                       </li>
                     ))}
                   </ul>
                 </div>
               )}
               {document.processingError && (
-                <div className="border-b bg-danger-soft px-6 py-2 text-[13px] text-danger">AI processing failed: {document.processingError}</div>
+                <div className="border-b bg-danger-soft px-6 py-2 text-[13px] text-danger">{t("viewer.failed", { error: document.processingError })}</div>
               )}
               <pre className="flex-1 px-6 py-5 font-mono text-[12.5px] leading-relaxed whitespace-pre-wrap text-foreground/90">{document.rawText}</pre>
             </div>

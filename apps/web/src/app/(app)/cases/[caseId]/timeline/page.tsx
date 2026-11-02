@@ -1,11 +1,13 @@
 import { cn } from "@ccr/ui/lib/utils";
-import { TIMELINE_EVENT_TYPE_LABELS, TIMELINE_EVENT_TYPES, type TimelineEventType } from "@ccr/types";
+import { TIMELINE_EVENT_TYPES, type TimelineEventType } from "@ccr/types";
 import { CalendarClockIcon, FileTextIcon, UserIcon } from "lucide-react";
 import Link from "next/link";
 import { AIGeneratedBadge } from "@/components/shared/badges";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TimelineActions } from "@/components/timeline/timeline-actions";
 import { TimelineEventIcon } from "@/components/timeline/event-icon";
+import { INTL_LOCALE } from "@/i18n/config";
+import { getI18n } from "@/i18n/server";
 import { shortName } from "@/lib/activity";
 import { loadCasePage } from "@/server/case-page";
 import { listTimeline } from "@/server/services/timeline";
@@ -19,14 +21,16 @@ export default async function TimelinePage({
 }) {
   const { user, caseId } = await loadCasePage(params);
   const { type } = await searchParams;
+  const { t, locale } = await getI18n();
+  const tag = INTL_LOCALE[locale];
   const all = await listTimeline(user, caseId);
   const filter = TIMELINE_EVENT_TYPES.includes(type as TimelineEventType) ? (type as TimelineEventType) : null;
   const events = filter ? all.filter((event) => event.eventType === filter) : all;
-  const presentTypes = TIMELINE_EVENT_TYPES.filter((t) => all.some((event) => event.eventType === t));
+  const presentTypes = TIMELINE_EVENT_TYPES.filter((eventType) => all.some((event) => event.eventType === eventType));
 
   const groups = new Map<string, typeof events>();
   for (const event of events) {
-    const key = event.date.toLocaleDateString("en-US", { month: "long", year: "numeric", timeZone: "UTC" });
+    const key = event.date.toLocaleDateString(tag, { month: "long", year: "numeric", timeZone: "UTC" });
     groups.set(key, [...(groups.get(key) ?? []), event]);
   }
 
@@ -34,8 +38,8 @@ export default async function TimelinePage({
     <div className="mx-auto max-w-4xl space-y-5 px-6 py-6 lg:px-8">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Patient timeline</h2>
-          <p className="text-[13px] text-muted-foreground">Extracted by AI from uploaded records and linked to each source. Most recent first.</p>
+          <h2 className="text-base font-semibold">{t("timeline.title")}</h2>
+          <p className="text-[13px] text-muted-foreground">{t("timeline.intro")}</p>
         </div>
         <TimelineActions caseId={caseId} />
       </div>
@@ -46,22 +50,25 @@ export default async function TimelinePage({
             href={`/cases/${caseId}/timeline`}
             className={cn("rounded-full border px-2.5 py-1 text-xs font-medium", !filter ? "border-primary bg-primary/10 text-primary" : "bg-card text-muted-foreground hover:text-foreground")}
           >
-            All · {all.length}
+            {t("cases.all", { count: all.length })}
           </Link>
-          {presentTypes.map((t) => (
+          {presentTypes.map((eventType) => (
             <Link
-              key={t}
-              href={`/cases/${caseId}/timeline?type=${t}`}
-              className={cn("rounded-full border px-2.5 py-1 text-xs font-medium", filter === t ? "border-primary bg-primary/10 text-primary" : "bg-card text-muted-foreground hover:text-foreground")}
+              key={eventType}
+              href={`/cases/${caseId}/timeline?type=${eventType}`}
+              className={cn(
+                "rounded-full border px-2.5 py-1 text-xs font-medium",
+                filter === eventType ? "border-primary bg-primary/10 text-primary" : "bg-card text-muted-foreground hover:text-foreground",
+              )}
             >
-              {TIMELINE_EVENT_TYPE_LABELS[t]}
+              {t(`enum.timelineType.${eventType}`)}
             </Link>
           ))}
         </div>
       )}
 
       {events.length === 0 ? (
-        <EmptyState icon={CalendarClockIcon} title="No timeline events yet" description="Upload clinical documents; the AI extracts dated events automatically and links each one to its source." />
+        <EmptyState icon={CalendarClockIcon} title={t("timeline.empty.title")} description={t("timeline.empty.text")} />
       ) : (
         <div className="space-y-8">
           {[...groups.entries()].map(([month, monthEvents]) => (
@@ -73,17 +80,17 @@ export default async function TimelinePage({
                   <li key={event.id} id={`event-${event.id}`} className="relative flex scroll-mt-24 gap-4">
                     <div className="w-[70px] shrink-0 pt-1.5 text-right">
                       <div className="text-[13px] font-semibold tabular-nums">
-                        {event.date.toLocaleDateString("en-US", { month: "short", day: "numeric", timeZone: "UTC" })}
+                        {event.date.toLocaleDateString(tag, { month: "short", day: "numeric", timeZone: "UTC" })}
                       </div>
                       <div className="text-[11px] text-muted-foreground">
-                        {event.date.toLocaleDateString("en-US", { weekday: "short", timeZone: "UTC" })}
+                        {event.date.toLocaleDateString(tag, { weekday: "short", timeZone: "UTC" })}
                       </div>
                     </div>
                     <TimelineEventIcon type={event.eventType} className="relative z-10 mt-0.5 ring-4 ring-background" />
                     <div className="min-w-0 flex-1 rounded-xl border bg-card px-4 py-3 target:ring-2 target:ring-primary/40">
                       <div className="flex flex-wrap items-start justify-between gap-2">
                         <div className="text-[13.5px] font-semibold leading-snug">{event.title}</div>
-                        <span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{TIMELINE_EVENT_TYPE_LABELS[event.eventType]}</span>
+                        <span className="text-[11px] font-medium tracking-wide text-muted-foreground uppercase">{t(`enum.timelineType.${event.eventType}`)}</span>
                       </div>
                       <p className="mt-1 text-[13px] leading-relaxed text-foreground/85">{event.description}</p>
                       <div className="mt-2.5 flex flex-wrap items-center gap-2">
@@ -101,7 +108,7 @@ export default async function TimelinePage({
                         ) : (
                           <span className="inline-flex items-center gap-1 text-[11px] text-muted-foreground">
                             <UserIcon className="size-3" />
-                            Added by {event.createdBy ? shortName(event.createdBy.name) : "the care team"}
+                            {t("timeline.addedBy", { name: event.createdBy ? shortName(event.createdBy.name) : t("timeline.theCareTeam") })}
                           </span>
                         )}
                       </div>

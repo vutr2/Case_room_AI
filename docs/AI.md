@@ -65,10 +65,14 @@ These are instructions to the model; a model can still fail to follow them. What
 
 Further application-level guarantees hold regardless of the model: AI output is stored as drafts, approvals can only be created by authenticated clinicians, follow-up tasks are suggestions until a human confirms them, and every AI action is audited with the human on whose behalf it ran.
 
+## Output language
+
+AI drafts are shared by the whole care team, so they follow the **organization's** language (Settings → Language), not the interface language of the person who asked. For a Vietnamese organization each task prompt ends with a language instruction (`withOutputLanguage` in `packages/ai/src/prompts/tasks.ts`); the system prompt stays the same, so prompt caching still applies. The model is told to write free text in Vietnamese, to keep record keys, values, units and drug, gene and test names as written, and never to translate a quote. Quotes are still checked verbatim against the source record (after Unicode NFC normalization, so Vietnamese diacritics match however they were encoded).
+
 ## Shared patient memory
 
 `extractMemoryFacts` returns facts from one document (diagnoses, medications, labs, imaging, pathology, treatments with status, problems, open questions). `mergeMemoryFacts` folds them into `CaseMemory`, keyed so re-processing a document is idempotent; the service writes it with optimistic concurrency on `CaseMemory.version`. Decisions and tasks are read live from their tables rather than copied into memory.
 
 ## Limits of the offline demo engine
 
-It is useful for demos and tests, not a substitute for a language model: it cannot synthesize across documents beyond juxtaposition, relies on conventional report structure (headings such as `IMPRESSION:`), and answers only what it can quote. It is always labeled "Demo AI (offline)" in the UI.
+It is useful for demos and tests, not a substitute for a language model: it cannot synthesize across documents beyond juxtaposition, relies on conventional report structure (headings such as `IMPRESSION:`), and answers only what it can quote. It is always labeled "Demo AI (offline)" in the UI. It writes English only, whatever the organization's language.

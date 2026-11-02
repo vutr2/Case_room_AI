@@ -6,20 +6,22 @@ import { CheckIcon, RefreshCwIcon, SparklesIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/client";
 import { approveBriefAction, generateSummaryAction } from "@/server/actions/briefs";
 import { useAIAction } from "../case/case-header";
 
-export function GenerateSummaryButton({ caseId, label = "Generate summary", variant = "ai" }: { caseId: string; label?: string; variant?: "ai" | "ai-outline" }) {
+export function GenerateSummaryButton({ caseId, regenerate = false }: { caseId: string; regenerate?: boolean }) {
   const ai = useAIAction();
+  const { t } = useI18n();
   return (
     <Button
-      variant={variant}
+      variant={regenerate ? "ai-outline" : "ai"}
       size="sm"
       disabled={ai.pending}
-      onClick={() => ai.run("Generating case summary…", () => generateSummaryAction(caseId), "Case summary updated")}
+      onClick={() => ai.run(t("ai.generatingSummary"), () => generateSummaryAction(caseId), t("ai.summaryUpdated"))}
     >
-      {ai.pending ? <Spinner /> : label.startsWith("Re") ? <RefreshCwIcon /> : <SparklesIcon />}
-      {label}
+      {ai.pending ? <Spinner /> : regenerate ? <RefreshCwIcon /> : <SparklesIcon />}
+      {regenerate ? t("summary.regenerate") : t("summary.generate")}
     </Button>
   );
 }
@@ -28,16 +30,15 @@ export function MarkReviewedButton({
   caseId,
   briefId,
   version,
-  label = "Mark as reviewed",
 }: {
   caseId: string;
   briefId: string;
   /** The summary version on screen; marking reviewed applies only to it. */
   version: number;
-  label?: string;
 }) {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const { t } = useI18n();
   return (
     <Button
       variant="approve"
@@ -50,14 +51,14 @@ export function MarkReviewedButton({
             toast.error(result.error);
             router.refresh();
           } else {
-            toast.success("Marked as reviewed by you");
+            toast.success(t("summary.markedReviewed"));
             router.refresh();
           }
         })
       }
     >
       {pending ? <Spinner /> : <CheckIcon />}
-      {label}
+      {t("summary.markReviewed")}
     </Button>
   );
 }

@@ -5,14 +5,16 @@ import type { TaskStatus } from "@ccr/types";
 import { CheckIcon } from "lucide-react";
 import { useOptimistic, useTransition } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/client";
 import { updateTaskStatusAction } from "@/server/actions/tasks";
 
 /** Round checkbox that cycles TODO → IN_PROGRESS → DONE (click) and DONE → TODO. */
 export function TaskStatusToggle({ taskId, status, disabled }: { taskId: string; status: TaskStatus; disabled?: boolean }) {
   const [optimistic, setOptimistic] = useOptimistic(status);
   const [pending, startTransition] = useTransition();
+  const { t } = useI18n();
   const next: TaskStatus = optimistic === "TODO" ? "IN_PROGRESS" : optimistic === "IN_PROGRESS" ? "DONE" : "TODO";
-  const label = optimistic === "TODO" ? "Start task" : optimistic === "IN_PROGRESS" ? "Mark done" : "Reopen task";
+  const label = optimistic === "TODO" ? t("tasks.start") : optimistic === "IN_PROGRESS" ? t("tasks.markDone") : t("tasks.reopen");
 
   return (
     <button
@@ -25,7 +27,7 @@ export function TaskStatusToggle({ taskId, status, disabled }: { taskId: string;
           setOptimistic(next);
           const result = await updateTaskStatusAction(taskId, next);
           if (!result.ok) toast.error(result.error);
-          else if (next === "DONE") toast.success("Task completed");
+          else if (next === "DONE") toast.success(t("tasks.completed"));
         })
       }
       className={cn(

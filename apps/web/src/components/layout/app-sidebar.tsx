@@ -10,8 +10,8 @@ import {
 } from "@ccr/ui/components/dropdown-menu";
 import { cn } from "@ccr/ui/lib/utils";
 import type { UserRole } from "@ccr/types";
-import { USER_ROLE_LABELS } from "@ccr/types";
 import {
+  CheckIcon,
   ChevronsUpDownIcon,
   CheckSquareIcon,
   FolderHeartIcon,
@@ -20,11 +20,16 @@ import {
   SettingsIcon,
   SparklesIcon,
   UsersIcon,
+  type LucideIcon,
 } from "lucide-react";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/i18n/client";
+import { LOCALE_NAMES, LOCALES } from "@/i18n/config";
+import type { MessageKey } from "@/i18n/messages/en";
 import { logoutAction } from "@/server/actions/auth";
 import { UserAvatar } from "../shared/user-avatar";
+import { useSetLocale } from "./language-switcher";
 import { LogoMark } from "./logo";
 import { OrganizationSwitcher, type OrganizationOption } from "./organization-switcher";
 
@@ -35,29 +40,31 @@ interface SidebarProps {
   counts: { openTasks: number; pendingApprovals: number };
 }
 
-const NAV = [
-  { href: "/dashboard", label: "Dashboard", icon: LayoutDashboardIcon, count: "pendingApprovals" as const },
-  { href: "/cases", label: "Cases", icon: FolderHeartIcon },
-  { href: "/tasks", label: "Tasks", icon: CheckSquareIcon, count: "openTasks" as const },
-  { href: "/team", label: "Team", icon: UsersIcon },
-  { href: "/settings", label: "Settings", icon: SettingsIcon },
+const NAV: Array<{ href: string; label: MessageKey; icon: LucideIcon; count?: "openTasks" | "pendingApprovals" }> = [
+  { href: "/dashboard", label: "nav.dashboard", icon: LayoutDashboardIcon, count: "pendingApprovals" as const },
+  { href: "/cases", label: "nav.cases", icon: FolderHeartIcon },
+  { href: "/tasks", label: "nav.tasks", icon: CheckSquareIcon, count: "openTasks" as const },
+  { href: "/team", label: "nav.team", icon: UsersIcon },
+  { href: "/settings", label: "nav.settings", icon: SettingsIcon },
 ];
 
 export function AppSidebar({ user, organization, organizations, counts }: SidebarProps) {
   const pathname = usePathname();
+  const { locale, t } = useI18n();
+  const { setLocale } = useSetLocale();
 
   return (
     <aside className="no-print flex w-60 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
       <div className="flex h-14 items-center gap-2.5 border-b border-sidebar-border px-4">
         <LogoMark className="size-7" />
         <div className="min-w-0 leading-tight">
-          <div className="truncate text-[13px] font-semibold text-foreground">Clinical Case Room</div>
-          <div className="truncate text-[11px] text-muted-foreground">Multiplayer AI for clinical teams</div>
+          <div className="truncate text-[13px] font-semibold text-foreground">{t("app.name")}</div>
+          <div className="truncate text-[11px] text-muted-foreground">{t("app.tagline")}</div>
         </div>
       </div>
 
       <div className="px-3 pt-3">
-        <div className="text-[10.5px] font-semibold tracking-wider text-muted-foreground/80 uppercase">Organization</div>
+        <div className="text-[10.5px] font-semibold tracking-wider text-muted-foreground/80 uppercase">{t("nav.organization")}</div>
         <OrganizationSwitcher activeId={organization.id} organizations={organizations} />
       </div>
 
@@ -75,7 +82,7 @@ export function AppSidebar({ user, organization, organizations, counts }: Sideba
               )}
             >
               <item.icon className={cn("size-4", active ? "text-primary" : "text-muted-foreground")} />
-              <span className="flex-1">{item.label}</span>
+              <span className="flex-1">{t(item.label)}</span>
               {count > 0 && (
                 <span className="rounded-full bg-primary/10 px-1.5 text-[10.5px] font-semibold text-primary tabular-nums">{count}</span>
               )}
@@ -88,7 +95,7 @@ export function AppSidebar({ user, organization, organizations, counts }: Sideba
         <div className="rounded-lg border border-sidebar-border bg-card px-2.5 py-2">
           <div className="flex items-center gap-1.5 text-[11px] font-medium text-foreground">
             <SparklesIcon className="size-3.5 text-ai" />
-            AI assistant
+            {t("nav.aiAssistant")}
           </div>
         </div>
 
@@ -98,7 +105,7 @@ export function AppSidebar({ user, organization, organizations, counts }: Sideba
               <UserAvatar user={user} size="md" />
               <div className="min-w-0 flex-1 leading-tight">
                 <div className="truncate text-[13px] font-medium text-foreground">{user.name}</div>
-                <div className="truncate text-[11px] text-muted-foreground">{user.title ?? USER_ROLE_LABELS[user.role]}</div>
+                <div className="truncate text-[11px] text-muted-foreground">{user.title ?? t(`enum.role.${user.role}`)}</div>
               </div>
               <ChevronsUpDownIcon className="size-4 text-muted-foreground" />
             </button>
@@ -107,18 +114,27 @@ export function AppSidebar({ user, organization, organizations, counts }: Sideba
             <DropdownMenuLabel>
               <div className="text-[13px] font-medium text-foreground">{user.name}</div>
               <div className="font-normal">{user.email}</div>
-              <div className="mt-1 font-normal">{USER_ROLE_LABELS[user.role]}</div>
+              <div className="mt-1 font-normal">{t(`enum.role.${user.role}`)}</div>
             </DropdownMenuLabel>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <Link href="/settings">
                 <SettingsIcon />
-                Settings
+                {t("nav.settings")}
               </Link>
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="font-normal">{t("language.label")}</DropdownMenuLabel>
+            {LOCALES.map((option) => (
+              <DropdownMenuItem key={option} onSelect={() => option !== locale && setLocale(option)}>
+                {option === locale ? <CheckIcon /> : <span aria-hidden className="size-4" />}
+                {LOCALE_NAMES[option]}
+              </DropdownMenuItem>
+            ))}
+            <DropdownMenuSeparator />
             <DropdownMenuItem onSelect={() => void logoutAction()}>
               <LogOutIcon />
-              Sign out
+              {t("nav.signOut")}
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>

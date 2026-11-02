@@ -2,6 +2,7 @@ import "server-only";
 import { lockRow, prisma, type DbClient } from "@ccr/database";
 import { TASK_PRIORITIES } from "@ccr/types";
 import { z } from "zod";
+import { caseTextFor } from "@/i18n/translator-for";
 import type { SessionUser } from "../auth/session";
 import { assertCaseAccess } from "../authz/case-access";
 import { assertCan, isClinicalReviewer } from "../authz/permissions";
@@ -12,6 +13,9 @@ import { buildCaseContext, getAIProvider } from "./ai";
 import { withAIRun } from "./ai-quota";
 import { recordAudit } from "./audit";
 import { postSystemMessage, touchCaseRoom } from "./system-messages";
+
+/** System message key for each review verdict (see reviewAction). */
+const REVIEW_TEXT = { "decision.approved": "approved", "decision.rejected": "rejected", "decision.changes_requested": "changes" } as const;
 
 export const decisionInputSchema = z.object({
   title: z.string().trim().min(5, "Give the decision a clear title").max(200),
@@ -108,15 +112,15 @@ export async function createDecision(user: SessionUser, caseRoomId: string, raw:
         caseRoomId,
         date: today(),
         eventType: "DECISION",
-        title: `Decision #${number} proposed`,
-        description: `${input.title}, proposed by ${user.name} for multidisciplinary review.`,
+        title: caseTextFor(user)("system.timeline.decisionProposed.title", { number }),
+        description: caseTextFor(user)("system.timeline.decisionProposed.description", { title: input.title, name: user.name }),
         createdById: user.id,
       },
     });
     await tx.caseRoom.updateMany({ where: { id: caseRoomId, status: { not: "CLOSED" } }, data: { status: "DECISION_PENDING" } });
     await postSystemMessage(tx, {
       caseRoomId,
-      content: `${user.name} proposed Decision #${number}: ${input.title}. Reviewers: ${reviewers.map((r) => r.name).join(", ")}.`,
+      content: caseTextFor(user)("system.decisionProposed", { name: user.name, number, title: input.title, reviewers: reviewers.map((r) => r.name).join(", ") }),
       event: "decision.proposed",
       refType: "decision",
       refId: decision.id,
@@ -198,7 +202,11 @@ export async function reviewDecision(user: SessionUser, decisionId: string, raw:
     });
     await postSystemMessage(tx, {
       caseRoomId,
-      content: `${user.name} ${action.verb} Decision #${decision.number}${input.comment ? `: "${input.comment}"` : "."}`,
+      content: caseTextFor(user)(`system.review.${REVIEW_TEXT[action.audit]}${input.comment ? "Comment" : ""}`, {
+        name: user.name,
+        number: decision.number,
+        comment: input.comment ?? "",
+      }),
       event: action.audit,
       refType: "decision",
       refId: decision.id,
@@ -207,7 +215,7 @@ export async function reviewDecision(user: SessionUser, decisionId: string, raw:
     if (nextStatus === "APPROVED") {
       await postSystemMessage(tx, {
         caseRoomId,
-        content: `Decision #${decision.number} was approved by all ${statuses.length} reviewers and is recorded as the final human-approved decision.`,
+        content: caseTextFor(user)("system.decisionFinal", { number: decision.number, count: statuses.length }),
         event: "decision.finalized",
         refType: "decision",
         refId: decision.id,
@@ -217,8 +225,8 @@ export async function reviewDecision(user: SessionUser, decisionId: string, raw:
           caseRoomId,
           date: today(),
           eventType: "DECISION",
-          title: `Decision #${decision.number} approved`,
-          description: `${decision.title}. Final human-approved decision after review by the care team.`,
+          title: caseTextFor(user)("system.timeline.decisionApproved.title", { number: decision.number }),
+          description: caseTextFor(user)("system.timeline.decisionApproved.description", { title: decision.title }),
           createdById: user.id,
         },
       });
@@ -293,7 +301,7 @@ export async function reviseDecision(user: SessionUser, decisionId: string, raw:
     await tx.approval.createMany({ data: reviewers.map((r) => ({ decisionId, userId: r.id, status: "PENDING" as const })) });
     await postSystemMessage(tx, {
       caseRoomId,
-      content: `${user.name} revised Decision #${decision.number} (revision ${updated.revision}). All reviews were reset and are pending again.`,
+      content: caseTextFor(user)("system.decisionRevised", { name: user.name, number: decision.number, revision: updated.revision }),
       event: "decision.revised",
       refType: "decision",
       refId: decisionId,
@@ -404,7 +412,7 @@ export async function createFollowUpTasks(user: SessionUser, decisionId: string,
     }
     await postSystemMessage(tx, {
       caseRoomId: decision.caseRoomId,
-      content: `${user.name} created ${input.tasks.length} follow-up task${input.tasks.length === 1 ? "" : "s"} for Decision #${decision.number} (AI-suggested, human-confirmed).`,
+      content: caseTextFor(user).plural("system.followUps", input.tasks.length, { name: user.name, number: decision.number }),
       event: "task.created",
       refType: "decision",
       refId: decisionId,

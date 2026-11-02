@@ -72,7 +72,7 @@ test("an admin changes a member's role, which changes what that member can do", 
     await expect(obrien.getByRole("button", { name: "Create decision" })).toHaveCount(0);
 
     await admin.goto("/settings/audit");
-    await expect(admin.getByText(/changed Dr\. James O'Brien's role to NURSE/).first()).toBeVisible();
+    await expect(admin.getByText(/changed Dr\. James O'Brien's role to Nurse/).first()).toBeVisible();
   } finally {
     await admin.goto("/team");
     await admin.getByLabel("Role of Dr. James O'Brien").selectOption("SPECIALIST");

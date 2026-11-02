@@ -2,6 +2,7 @@ import { DOCUMENT_TYPES, type DocumentType } from "@ccr/types";
 import { revalidatePath } from "next/cache";
 import { after, NextResponse } from "next/server";
 import { ZodError } from "zod";
+import { localizeServerMessage } from "@/i18n/server";
 import { getSessionUser } from "@/server/auth/session";
 import { assertCaseAccess } from "@/server/authz/case-access";
 import { assertCan } from "@/server/authz/permissions";
@@ -33,7 +34,7 @@ const maxConcurrentUploads = () => envLimit("MAX_CONCURRENT_UPLOADS", 4);
 export async function POST(request: Request, { params }: { params: Promise<{ caseId: string }> }) {
   const { caseId } = await params;
   const user = await getSessionUser();
-  if (!user) return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  if (!user) return await errorResponse("Unauthorized", 401);
 
   let aiRunId: string | null = null;
   let heartbeat: AIRunHeartbeat | null = null;
@@ -77,27 +78,29 @@ export async function POST(request: Request, { params }: { params: Promise<{ cas
     revalidatePath(`/cases/${caseId}`, "layout");
     return NextResponse.json({ id: document.id, characters: text.length }, { status: 201 });
   } catch (error) {
-    if (error instanceof PayloadTooLargeError) return NextResponse.json({ error: error.message }, { status: 413 });
+    if (error instanceof PayloadTooLargeError) return await errorResponse(error.message, 413);
     if (error instanceof StorageUnavailableError) {
       console.error("[upload] storage", error.message, error.cause);
-      return NextResponse.json(
-        { error: "The file storage is unavailable, so the document was not saved. Try again later." },
-        { status: 503, headers: { "Retry-After": "30" } },
-      );
+      return await errorResponse("The file storage is unavailable, so the document was not saved. Try again later.", 503, { "Retry-After": "30" });
     }
-    if (error instanceof RateLimitError) return NextResponse.json({ error: error.message }, { status: 429 });
-    if (error instanceof NotFoundError) return NextResponse.json({ error: error.message }, { status: 404 });
-    if (error instanceof ForbiddenError) return NextResponse.json({ error: error.message }, { status: 403 });
-    if (error instanceof AppError) return NextResponse.json({ error: error.message }, { status: 400 });
+    if (error instanceof RateLimitError) return await errorResponse(error.message, 429);
+    if (error instanceof NotFoundError) return await errorResponse(error.message, 404);
+    if (error instanceof ForbiddenError) return await errorResponse(error.message, 403);
+    if (error instanceof AppError) return await errorResponse(error.message, 400);
     if (error instanceof ZodError) {
-      return NextResponse.json({ error: error.issues[0]?.message ?? "Invalid input" }, { status: 400 });
+      return await errorResponse(error.issues[0]?.message ?? "Invalid input", 400);
     }
     console.error("[upload]", error);
-    return NextResponse.json({ error: "Upload failed. Please try again." }, { status: 500 });
+    return await errorResponse("Upload failed. Please try again.", 500);
   } finally {
     heartbeat?.stop();
     if (holdsSlot) globalForUploads.__ccrActiveUploads = Math.max(0, (globalForUploads.__ccrActiveUploads ?? 1) - 1);
     // Nothing was sent to the model: give the reserved budget back.
     if (aiRunId && !handedToProcessing) await finishAIRun(aiRunId, "RELEASED");
   }
+}
+
+/** JSON error for the upload dialog, in the reader's language (services write English). */
+async function errorResponse(message: string, status: number, headers?: Record<string, string>) {
+  return NextResponse.json({ error: await localizeServerMessage(message) }, { status, headers });
 }

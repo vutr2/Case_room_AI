@@ -3,11 +3,14 @@
 import { Button } from "@ccr/ui/components/button";
 import { Spinner } from "@ccr/ui/components/misc";
 import { Textarea } from "@ccr/ui/components/textarea";
-import type { BriefType, SectionsContent } from "@ccr/types";
+import { HANDOFF_SECTIONS, TUMOR_BOARD_SECTIONS, type BriefSection, type BriefType, type SectionsContent } from "@ccr/types";
 import { CheckIcon, InfoIcon, PencilIcon, PrinterIcon, SaveIcon, ShareIcon, XIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
+import type { Translator } from "@/i18n/translate";
 import { approveBriefAction, updateBriefAction } from "@/server/actions/briefs";
 import { AIGeneratedBadge, DraftBadge, HumanApprovedBadge } from "../shared/badges";
 import { LocalDateTime } from "../shared/misc";
@@ -36,6 +39,14 @@ export interface BriefEditorProps {
   isLatest: boolean;
 }
 
+type SectionKey = (typeof TUMOR_BOARD_SECTIONS)[number]["key"] | (typeof HANDOFF_SECTIONS)[number]["key"];
+const SECTION_KEYS = new Set<string>([...TUMOR_BOARD_SECTIONS, ...HANDOFF_SECTIONS].map((section) => section.key));
+
+/** Section headings in the interface language; the stored title for sections this version does not know. */
+function sectionTitle(section: BriefSection, t: Translator): string {
+  return SECTION_KEYS.has(section.key) ? t(`briefSection.${section.key as SectionKey}`) : section.title;
+}
+
 export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest }: BriefEditorProps) {
   const router = useRouter();
   // The clinician's unsaved edits and the version they started from. Kept when the
@@ -46,7 +57,8 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
   const [saving, startSaving] = useTransition();
   const [approving, startApproving] = useTransition();
   const approved = brief.status === "APPROVED";
-  const approveLabel = type === "TUMOR_BOARD" ? "Approve & share" : "Approve handoff";
+  const { t } = useI18n();
+  const approveLabel = type === "TUMOR_BOARD" ? t("brief.approveShare") : t("brief.approveHandoff");
 
   function startEditing() {
     setDraft({ baseVersion: brief.version, bodies: Object.fromEntries(brief.content.sections.map((s) => [s.key, s.body])) });
@@ -64,7 +76,7 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
         toast.error(result.error); // the draft stays on screen
         return;
       }
-      toast.success(approved ? "Saved. The brief returned to draft and needs approval again." : "Edits saved");
+      toast.success(approved ? t("brief.savedNeedsApproval") : t("brief.saved"));
       setDraft(null);
       router.refresh();
     });
@@ -77,7 +89,7 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
         toast.error(result.error);
         return;
       }
-      toast.success(type === "TUMOR_BOARD" ? "Brief approved and shared with the care team" : "Handoff approved: it is now final");
+      toast.success(type === "TUMOR_BOARD" ? t("brief.shared") : t("brief.handoffFinal"));
       router.refresh();
     });
   }
@@ -92,17 +104,19 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
             {approved ? <HumanApprovedBadge /> : <DraftBadge />}
           </div>
           <div className="text-xs text-muted-foreground">
-            Generated <LocalDateTime date={brief.createdAt} />
-            {brief.requestedBy ? ` for ${brief.requestedBy}` : ""}
-            {brief.provider ? ` by ${brief.provider}` : ""}
+            {rich(t("brief.generatedAt"), { time: <LocalDateTime date={brief.createdAt} /> })}
+            {brief.requestedBy ? ` ${t("brief.forName", { name: brief.requestedBy })}` : ""}
+            {brief.provider ? ` ${t("brief.byProvider", { provider: brief.provider })}` : ""}
             {brief.editedBy && brief.editedAt && (
               <>
-                {" · "}edited by {brief.editedBy} <LocalDateTime date={brief.editedAt} />
+                {" · "}
+                {rich(t("brief.editedBy", { name: brief.editedBy }), { time: <LocalDateTime date={brief.editedAt} /> })}
               </>
             )}
             {approved && brief.approvedBy && brief.approvedAt && (
               <span className="font-medium text-approved">
-                {" · "}approved by {brief.approvedBy} <LocalDateTime date={brief.approvedAt} />
+                {" · "}
+                {rich(t("brief.approvedBy", { name: brief.approvedBy }), { time: <LocalDateTime date={brief.approvedAt} /> })}
               </span>
             )}
           </div>
@@ -112,23 +126,23 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
             <>
               <Button variant="outline" size="sm" onClick={() => setDraft(null)} disabled={saving}>
                 <XIcon />
-                {conflict ? "Discard my draft" : "Cancel"}
+                {conflict ? t("brief.discardDraft") : t("common.cancel")}
               </Button>
               <Button size="sm" onClick={save} disabled={saving || conflict}>
                 {saving ? <Spinner /> : <SaveIcon />}
-                Save edits
+                {t("brief.saveEdits")}
               </Button>
             </>
           ) : (
             <>
               <Button variant="outline" size="sm" onClick={() => window.print()}>
                 <PrinterIcon />
-                Print
+                {t("brief.print")}
               </Button>
               {canEdit && isLatest && (
                 <Button variant="outline" size="sm" onClick={startEditing}>
                   <PencilIcon />
-                  Edit
+                  {t("brief.edit")}
                 </Button>
               )}
               {canApprove && isLatest && !approved && (
@@ -145,29 +159,26 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
       {conflict && (
         <div role="alert" className="no-print flex items-start gap-2 border-b border-danger-border bg-danger-soft px-5 py-2.5 text-xs text-danger">
           <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
-          <span>
-            {brief.editedBy ?? "Someone"} saved a newer version of this brief while you were editing. Your text is still below and was not saved. Copy what you
-            need, then discard your draft to load the latest version and edit again.
-          </span>
+          <span>{t("brief.conflict", { name: brief.editedBy ?? t("brief.someone") })}</span>
         </div>
       )}
       {editing && !conflict && approved && (
         <div className="no-print flex items-start gap-2 border-b border-draft-border bg-draft-soft/60 px-5 py-2 text-xs text-draft">
           <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
-          This version is approved. Saving your edits returns it to draft for a new approval.
+          {t("brief.approvedEditing")}
         </div>
       )}
       {!approved && (
         <div className="no-print flex items-start gap-2 border-b border-draft-border bg-draft-soft/60 px-5 py-2 text-xs text-draft">
           <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
-          AI-generated draft. Review every section against the sources and edit as needed. It is not final until a clinician approves it.
+          {t("brief.draftNotice")}
         </div>
       )}
 
       <div className="divide-y">
         {brief.content.sections.map((section) => (
           <section key={section.key} className="grid gap-2 px-5 py-4 md:grid-cols-[180px_minmax(0,1fr)]">
-            <h3 className="pt-0.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{section.title}</h3>
+            <h3 className="pt-0.5 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{sectionTitle(section, t)}</h3>
             <div className="min-w-0 space-y-2">
               {draft ? (
                 <Textarea
@@ -196,7 +207,7 @@ export function BriefEditor({ caseId, type, brief, canEdit, canApprove, isLatest
       <footer className="flex items-start gap-2 border-t bg-muted/30 px-5 py-3 text-xs text-muted-foreground">
         <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
         <span>
-          <span className="font-medium text-foreground/80">Limitations:</span> {brief.content.limitations} AI-generated content must be reviewed by a qualified healthcare professional.
+          <span className="font-medium text-foreground/80">{t("ai.limitations")}</span> {brief.content.limitations} {t("ai.reviewRequired")}
         </span>
       </footer>
     </article>

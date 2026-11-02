@@ -1,8 +1,9 @@
 import "server-only";
 import { lockRow, prisma, type Prisma } from "@ccr/database";
 import type { BriefType, CaseSummaryContent, SectionsContent } from "@ccr/types";
-import { BRIEF_TYPE_LABELS, briefSectionSchema, parseBriefContent } from "@ccr/types";
+import { briefSectionSchema, parseBriefContent } from "@ccr/types";
 import { z } from "zod";
+import { caseTextFor, i18nFor, lowerLabel, organizationLocale } from "@/i18n/translator-for";
 import type { SessionUser } from "../auth/session";
 import { assertCaseAccess } from "../authz/case-access";
 import { assertCan } from "../authz/permissions";
@@ -60,7 +61,7 @@ export async function generateCaseSummary(user: SessionUser, caseRoomId: string)
           caseRoomId,
           type: "CASE_SUMMARY",
           status: "DRAFT",
-          title: "AI case summary",
+          title: caseTextFor(user)("system.summaryTitle"),
           content: content as Prisma.InputJsonValue,
           generatedByAI: true,
           aiProvider: summary.provider.id,
@@ -100,7 +101,8 @@ async function generateSectionsBrief(user: SessionUser, caseRoomId: string, type
   const brief = await withAIRun(user, { task: type === "TUMOR_BOARD" ? "tumor_board" : "handoff" }, async (runId) => {
     const provider = getAIProvider();
     const result = type === "TUMOR_BOARD" ? await provider.generateTumorBoardBrief(ctx) : await provider.generateHandoff(ctx);
-    const date = new Date().toLocaleDateString("en-US", { month: "short", day: "numeric", year: "numeric" });
+    const { t, fmt } = i18nFor(organizationLocale(user.organizationLocale));
+    const date = fmt.date(new Date());
 
     return prisma.$transaction(async (tx) => {
       await completeAIRunInTransaction(tx, runId);
@@ -109,7 +111,7 @@ async function generateSectionsBrief(user: SessionUser, caseRoomId: string, type
           caseRoomId,
           type,
           status: "DRAFT",
-          title: type === "TUMOR_BOARD" ? `Tumor board brief: ${date}` : `Handoff: ${date}`,
+          title: type === "TUMOR_BOARD" ? t("system.tumorBoardTitle", { date }) : t("system.handoffTitle", { date }),
           content: result.output as Prisma.InputJsonValue,
           generatedByAI: true,
           aiProvider: result.provider.id,
@@ -225,7 +227,8 @@ export async function approveBrief(user: SessionUser, briefId: string, raw: z.in
     type === "HANDOFF" ? "Only clinicians can approve a handoff." : "Only physicians and specialists can approve this brief.",
   );
 
-  const label = BRIEF_TYPE_LABELS[type];
+  const caseText = caseTextFor(user);
+  const label = lowerLabel(caseText(`enum.briefType.${type}`));
   const changed = await prisma.$transaction(async (tx) => {
     // Lock order: CaseRoom → CaseBrief (approval also touches the case row).
     await lockRow(tx, "CaseRoom", caseRoomId);
@@ -249,8 +252,8 @@ export async function approveBrief(user: SessionUser, briefId: string, raw: z.in
         caseRoomId,
         content:
           type === "TUMOR_BOARD"
-            ? `${user.name} reviewed and shared the ${label.toLowerCase()} "${brief.title}".`
-            : `${user.name} approved the ${label.toLowerCase()} "${brief.title}". It is now the final handoff.`,
+            ? caseText("system.tumorBoardShared", { name: user.name, label, title: brief.title })
+            : caseText("system.handoffApproved", { name: user.name, label, title: brief.title }),
         event: "brief.approved",
         refType: "brief",
         refId: briefId,

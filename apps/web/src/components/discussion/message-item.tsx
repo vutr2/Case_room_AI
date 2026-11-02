@@ -20,18 +20,19 @@ import {
 import { Fragment } from "react";
 import { toast } from "sonner";
 import type { MessageDTO, UserSummary } from "@/lib/dto";
-import { formatTime } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
+import type { MessageKey } from "@/i18n/messages/en";
 import { AIGeneratedBadge } from "../shared/badges";
 import { RichText, SourceList } from "../shared/sources";
 import { AIAvatar, UserAvatar } from "../shared/user-avatar";
 
 export const REACTIONS = ["👍", "✅", "👀", "❗", "🙏"] as const;
 
-const CONFIDENCE: Record<AIConfidence, { label: string; className: string }> = {
-  high: { label: "High confidence", className: "border-approved-border bg-approved-soft text-approved" },
-  moderate: { label: "Moderate confidence", className: "border-source-border bg-source-soft text-source" },
-  low: { label: "Low confidence", className: "border-draft-border bg-draft-soft text-draft" },
-  insufficient: { label: "Insufficient information", className: "border-danger-border bg-danger-soft text-danger" },
+const CONFIDENCE: Record<AIConfidence, { label: MessageKey; className: string }> = {
+  high: { label: "message.confidence.high", className: "border-approved-border bg-approved-soft text-approved" },
+  moderate: { label: "message.confidence.moderate", className: "border-source-border bg-source-soft text-source" },
+  low: { label: "message.confidence.low", className: "border-draft-border bg-draft-soft text-draft" },
+  insufficient: { label: "message.confidence.insufficient", className: "border-danger-border bg-danger-soft text-danger" },
 };
 
 function MentionText({ content, members }: { content: string; members: UserSummary[] }) {
@@ -103,11 +104,12 @@ function Reactions({ message, currentUserId, onReact }: Pick<MessageItemProps, "
 }
 
 function Toolbar({ message, onReact, onCreateTask, onCreateDecision }: Pick<MessageItemProps, "message" | "onReact" | "onCreateTask" | "onCreateDecision">) {
+  const { t } = useI18n();
   return (
     <div className="absolute -top-3.5 right-4 z-10 hidden items-center gap-0.5 rounded-lg border bg-card p-0.5 shadow-sm group-hover:flex">
       <Popover>
         <PopoverTrigger asChild>
-          <Button variant="ghost" size="icon-xs" aria-label="Add reaction">
+          <Button variant="ghost" size="icon-xs" aria-label={t("message.addReaction")}>
             <SmilePlusIcon />
           </Button>
         </PopoverTrigger>
@@ -124,21 +126,21 @@ function Toolbar({ message, onReact, onCreateTask, onCreateDecision }: Pick<Mess
       {onCreateTask && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label="Create task from message" onClick={() => onCreateTask(message)}>
+            <Button variant="ghost" size="icon-xs" aria-label={t("message.createTask")} onClick={() => onCreateTask(message)}>
               <CheckSquareIcon />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Create task from message</TooltipContent>
+          <TooltipContent>{t("message.createTask")}</TooltipContent>
         </Tooltip>
       )}
       {onCreateDecision && (
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon-xs" aria-label="Create decision from message" onClick={() => onCreateDecision(message)}>
+            <Button variant="ghost" size="icon-xs" aria-label={t("message.createDecision")} onClick={() => onCreateDecision(message)}>
               <ScaleIcon />
             </Button>
           </TooltipTrigger>
-          <TooltipContent>Propose a decision from this discussion</TooltipContent>
+          <TooltipContent>{t("message.proposeDecision")}</TooltipContent>
         </Tooltip>
       )}
       <Tooltip>
@@ -146,16 +148,16 @@ function Toolbar({ message, onReact, onCreateTask, onCreateDecision }: Pick<Mess
           <Button
             variant="ghost"
             size="icon-xs"
-            aria-label="Copy text"
+            aria-label={t("message.copy")}
             onClick={() => {
               void navigator.clipboard.writeText(message.content);
-              toast.success("Copied to clipboard");
+              toast.success(t("message.copied"));
             }}
           >
             <CopyIcon />
           </Button>
         </TooltipTrigger>
-        <TooltipContent>Copy text</TooltipContent>
+        <TooltipContent>{t("message.copy")}</TooltipContent>
       </Tooltip>
     </div>
   );
@@ -164,6 +166,7 @@ function Toolbar({ message, onReact, onCreateTask, onCreateDecision }: Pick<Mess
 export function MessageItem(props: MessageItemProps) {
   const { message, caseId, members, currentUserId, grouped, highlighted, pending } = props;
   const metadata = message.metadata;
+  const { t, fmt } = useI18n();
 
   if (message.type === "SYSTEM") {
     return (
@@ -172,7 +175,7 @@ export function MessageItem(props: MessageItemProps) {
         <span className="flex max-w-[80%] items-center gap-1.5 text-center text-[11.5px] text-muted-foreground">
           <ZapIcon className="size-3 shrink-0" />
           {message.content}
-          <span className="shrink-0 text-muted-foreground/60">· {formatTime(message.createdAt)}</span>
+          <span className="shrink-0 text-muted-foreground/60">· {fmt.time(message.createdAt)}</span>
         </span>
         <span className="h-px flex-1 bg-border" />
       </div>
@@ -191,15 +194,18 @@ export function MessageItem(props: MessageItemProps) {
           <AIAvatar size="md" className="mt-0.5" />
           <div className="min-w-0 flex-1">
             <div className="flex flex-wrap items-center gap-2">
-              <span className="text-[13px] font-semibold text-ai">AI case assistant</span>
+              <span className="text-[13px] font-semibold text-ai">{t("avatar.ai")}</span>
               <AIGeneratedBadge />
-              {answer && <Badge className={cn("border", CONFIDENCE[answer.confidence].className)}>{CONFIDENCE[answer.confidence].label}</Badge>}
-              <span className="text-[11px] text-muted-foreground">{formatTime(message.createdAt)}</span>
+              {answer && <Badge className={cn("border", CONFIDENCE[answer.confidence].className)}>{t(CONFIDENCE[answer.confidence].label)}</Badge>}
+              <span className="text-[11px] text-muted-foreground">{fmt.time(message.createdAt)}</span>
             </div>
             {question && (
               <div className="mt-1 flex items-center gap-1 text-[11.5px] text-muted-foreground">
                 <CornerDownRightIcon className="size-3" />
-                Answering {requester ? requester.name : "a team member"}: “{question.length > 110 ? `${question.slice(0, 110)}…` : question}”
+                {t("message.answering", {
+                  name: requester ? requester.name : t("message.aTeamMember"),
+                  question: question.length > 110 ? `${question.slice(0, 110)}…` : question,
+                })}
               </div>
             )}
             <div
@@ -226,7 +232,7 @@ export function MessageItem(props: MessageItemProps) {
                   <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
                   <span>
                     {answer.limitations}
-                    {answer.droppedCitations > 0 && ` ${answer.droppedCitations} unverifiable citation(s) removed.`} Review with the source records before acting.
+                    {answer.droppedCitations > 0 && ` ${t("message.droppedCitations", { count: answer.droppedCitations })}`} {t("message.reviewSources")}
                   </span>
                 </div>
               )}
@@ -252,15 +258,15 @@ export function MessageItem(props: MessageItemProps) {
         <div className="min-w-0 flex-1">
           {!grouped && (
             <div className="flex flex-wrap items-baseline gap-2">
-              <span className="text-[13px] font-semibold">{author?.name ?? "Unknown"}</span>
+              <span className="text-[13px] font-semibold">{author?.name ?? t("audit.unknown")}</span>
               {author?.specialty && <span className="text-[11px] text-muted-foreground">{author.specialty}</span>}
-              <span className="text-[11px] text-muted-foreground/80">{formatTime(message.createdAt)}</span>
-              {isMine && pending && <span className="text-[11px] text-muted-foreground">sending…</span>}
+              <span className="text-[11px] text-muted-foreground/80">{fmt.time(message.createdAt)}</span>
+              {isMine && pending && <span className="text-[11px] text-muted-foreground">{t("message.sending")}</span>}
             </div>
           )}
           <div className="text-[13.5px] leading-relaxed whitespace-pre-wrap text-foreground/95">
             <MentionText content={message.content} members={members} />
-            {mentionsAI && <SparklesIcon className="ml-1 inline size-3.5 text-ai" aria-label="Question for the AI" />}
+            {mentionsAI && <SparklesIcon className="ml-1 inline size-3.5 text-ai" aria-label={t("message.aiQuestion")} />}
           </div>
           <Reactions {...props} />
         </div>

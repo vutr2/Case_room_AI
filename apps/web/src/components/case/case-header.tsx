@@ -11,7 +11,7 @@ import {
 } from "@ccr/ui/components/dropdown-menu";
 import { cn } from "@ccr/ui/lib/utils";
 import type { CaseSpecialty, CaseStatus, PatientSex } from "@ccr/types";
-import { CASE_SPECIALTY_LABELS, CASE_STATUS_LABELS, CASE_STATUSES, PATIENT_SEX_LABELS } from "@ccr/types";
+import { CASE_STATUSES } from "@ccr/types";
 import {
   ChevronDownIcon,
   ChevronRightIcon,
@@ -28,7 +28,7 @@ import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { useTransition } from "react";
 import { toast } from "sonner";
-import { formatDate } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 import { generateHandoffAction, generateSummaryAction, generateTumorBoardAction } from "@/server/actions/briefs";
 import { updateCaseStatusAction } from "@/server/actions/cases";
 import { SyntheticPatientBadge } from "../shared/badges";
@@ -53,15 +53,16 @@ export interface CaseHeaderProps {
 export function useAIAction() {
   const router = useRouter();
   const [pending, startTransition] = useTransition();
+  const { t } = useI18n();
   function run(label: string, action: () => Promise<{ ok: true } | { ok: false; error: string }>, success: string, href?: string) {
     startTransition(async () => {
-      const toastId = toast.loading(label, { description: "Reading the full case record…" });
+      const toastId = toast.loading(label, { description: t("ai.readingRecord") });
       const result = await action();
       if (!result.ok) {
         toast.error(result.error, { id: toastId, description: undefined });
         return;
       }
-      toast.success(success, { id: toastId, description: "AI-generated draft. Review before relying on it." });
+      toast.success(success, { id: toastId, description: t("ai.draftNotice") });
       if (href) router.push(href);
       else router.refresh();
     });
@@ -75,6 +76,7 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
   const router = useRouter();
   const ai = useAIAction();
   const [statusPending, startStatus] = useTransition();
+  const { t, fmt } = useI18n();
   const { caseId, permissions } = actions;
 
   function changeStatus(next: CaseStatus) {
@@ -82,7 +84,7 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
       const result = await updateCaseStatusAction(caseId, next);
       if (!result.ok) toast.error(result.error);
       else {
-        toast.success(`Case status: ${CASE_STATUS_LABELS[next]}`);
+        toast.success(t("case.statusChanged", { status: t(`enum.caseStatus.${next}`) }));
         router.refresh();
       }
     });
@@ -92,7 +94,7 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
     <header className="border-b bg-card px-6 pt-4 lg:px-8">
       <nav className="mb-2 flex items-center gap-1 text-xs text-muted-foreground">
         <Link href="/cases" className="hover:text-foreground">
-          Cases
+          {t("nav.cases")}
         </Link>
         <ChevronRightIcon className="size-3" />
         <span className="truncate">{title}</span>
@@ -105,17 +107,15 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
             <SyntheticPatientBadge />
           </div>
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-[13px] text-muted-foreground">
-            <span>
-              {patient.age} y · {PATIENT_SEX_LABELS[patient.sex]}
-            </span>
+            <span>{t("case.ageSex", { age: patient.age, sex: t(`enum.sex.${patient.sex}`) })}</span>
             <span className="text-border">|</span>
-            <span>MRN {patient.mrn}</span>
+            <span>{t("case.mrn", { mrn: patient.mrn })}</span>
             <span className="text-border">|</span>
-            <span>DOB {formatDate(patient.dateOfBirth)}</span>
+            <span>{t("case.dob", { date: fmt.date(patient.dateOfBirth) })}</span>
           </div>
           <div className="flex flex-wrap items-center gap-2 text-[13px]">
             <span className="font-medium text-foreground">{patient.primaryDiagnosis}</span>
-            <span className="text-muted-foreground">· {CASE_SPECIALTY_LABELS[specialty]}</span>
+            <span className="text-muted-foreground">· {t(`enum.specialty.${specialty}`)}</span>
           </div>
         </div>
 
@@ -129,16 +129,16 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
                     className="inline-flex cursor-pointer items-center gap-1.5 rounded-full border bg-card px-2.5 py-1 text-xs font-medium shadow-xs hover:bg-accent disabled:opacity-60"
                   >
                     <span className={cn("size-2 rounded-full", STATUS_DOT[status])} />
-                    {CASE_STATUS_LABELS[status]}
+                    {t(`enum.caseStatus.${status}`)}
                     <ChevronDownIcon className="size-3 text-muted-foreground" />
                   </button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent align="end">
-                  <DropdownMenuLabel>Case status</DropdownMenuLabel>
+                  <DropdownMenuLabel>{t("case.statusLabel")}</DropdownMenuLabel>
                   {CASE_STATUSES.map((value) => (
                     <DropdownMenuItem key={value} onSelect={() => value !== status && changeStatus(value)}>
                       <span className={cn("size-2 rounded-full", STATUS_DOT[value])} />
-                      {CASE_STATUS_LABELS[value]}
+                      {t(`enum.caseStatus.${value}`)}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
@@ -146,10 +146,10 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
             ) : (
               <span className="inline-flex items-center gap-1.5 rounded-full border px-2.5 py-1 text-xs font-medium">
                 <span className={cn("size-2 rounded-full", STATUS_DOT[status])} />
-                {CASE_STATUS_LABELS[status]}
+                {t(`enum.caseStatus.${status}`)}
               </span>
             )}
-            <button type="button" onClick={permissions.manageCase ? actions.openInvite : undefined} className="cursor-pointer" title="Care team">
+            <button type="button" onClick={permissions.manageCase ? actions.openInvite : undefined} className="cursor-pointer" title={t("cases.col.careTeam")}>
               <AvatarStack users={actions.members} max={6} size="sm" onlineIds={realtime.onlineIds} />
             </button>
           </div>
@@ -158,13 +158,13 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
             {permissions.uploadDocument && (
               <Button variant="outline" size="sm" onClick={actions.openUpload}>
                 <FileUpIcon />
-                Upload document
+                {t("case.upload")}
               </Button>
             )}
             {permissions.manageCase && (
               <Button variant="outline" size="sm" onClick={actions.openInvite}>
                 <UserPlusIcon />
-                Invite specialist
+                {t("case.invite")}
               </Button>
             )}
             {permissions.generateBrief && (
@@ -172,21 +172,21 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
                 variant="ai-outline"
                 size="sm"
                 disabled={ai.pending}
-                onClick={() => ai.run("Generating case summary…", () => generateSummaryAction(caseId), "Case summary updated", `/cases/${caseId}`)}
+                onClick={() => ai.run(t("ai.generatingSummary"), () => generateSummaryAction(caseId), t("ai.summaryUpdated"), `/cases/${caseId}`)}
               >
                 <SparklesIcon />
-                Generate summary
+                {t("case.generateSummary")}
               </Button>
             )}
             {permissions.createDecision && (
               <Button size="sm" onClick={() => actions.openCreateDecision()}>
                 <ScaleIcon />
-                Create decision
+                {t("case.createDecision")}
               </Button>
             )}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" size="icon-sm" aria-label="More actions">
+                <Button variant="outline" size="icon-sm" aria-label={t("case.moreActions")}>
                   <MoreHorizontalIcon />
                 </Button>
               </DropdownMenuTrigger>
@@ -195,20 +195,20 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
                   <DropdownMenuItem
                     disabled={ai.pending}
                     onSelect={() =>
-                      ai.run("Preparing tumor board brief…", () => generateTumorBoardAction(caseId), "Tumor board brief drafted", `/cases/${caseId}/tumor-board`)
+                      ai.run(t("ai.preparingTumorBoard"), () => generateTumorBoardAction(caseId), t("ai.tumorBoardDrafted"), `/cases/${caseId}/tumor-board`)
                     }
                   >
                     <PresentationIcon />
-                    Prepare tumor board
+                    {t("case.prepareTumorBoard")}
                   </DropdownMenuItem>
                 )}
                 {permissions.generateHandoff && (
                   <DropdownMenuItem
                     disabled={ai.pending}
-                    onSelect={() => ai.run("Drafting patient handoff…", () => generateHandoffAction(caseId), "Handoff drafted", `/cases/${caseId}/handoff`)}
+                    onSelect={() => ai.run(t("ai.draftingHandoff"), () => generateHandoffAction(caseId), t("ai.handoffDrafted"), `/cases/${caseId}/handoff`)}
                   >
                     <ClipboardListIcon />
-                    Generate handoff
+                    {t("case.generateHandoff")}
                   </DropdownMenuItem>
                 )}
                 {permissions.manageTasks && (
@@ -216,7 +216,7 @@ export function CaseHeader({ title, status, specialty, patient }: CaseHeaderProp
                     <DropdownMenuSeparator />
                     <DropdownMenuItem onSelect={() => actions.openCreateTask()}>
                       <ListPlusIcon />
-                      Add task
+                      {t("tasks.add")}
                     </DropdownMenuItem>
                   </>
                 )}

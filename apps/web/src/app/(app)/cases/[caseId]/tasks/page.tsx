@@ -1,5 +1,5 @@
 import { cn } from "@ccr/ui/lib/utils";
-import { TASK_STATUS_LABELS, TASK_STATUSES, type TaskStatus } from "@ccr/types";
+import { TASK_STATUSES, type TaskStatus } from "@ccr/types";
 import { MessageSquareIcon, ScaleIcon, SparklesIcon } from "lucide-react";
 import Link from "next/link";
 import { TaskPriorityBadge } from "@/components/shared/badges";
@@ -7,6 +7,7 @@ import { UserAvatar } from "@/components/shared/user-avatar";
 import { MoveTaskMenu, NewTaskButton } from "@/components/tasks/task-board-actions";
 import { DueChip } from "@/components/tasks/task-row";
 import { TaskStatusToggle } from "@/components/tasks/task-status-toggle";
+import { getI18n } from "@/i18n/server";
 import { shortName } from "@/lib/activity";
 import { can } from "@/server/authz/permissions";
 import { loadCasePage } from "@/server/case-page";
@@ -22,13 +23,14 @@ export default async function CaseTasksPage({ params }: { params: Promise<{ case
   const { user, caseId } = await loadCasePage(params);
   const tasks = await listCaseTasks(user, caseId);
   const canManage = can(user, "task.manage");
+  const { t } = await getI18n();
 
   return (
     <div className="space-y-5 px-6 py-6 lg:px-8">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Tasks</h2>
-          <p className="text-[13px] text-muted-foreground">Follow-ups for the care team. Tasks can be created from discussion messages or suggested by AI after a decision is approved.</p>
+          <h2 className="text-base font-semibold">{t("caseTab.tasks")}</h2>
+          <p className="text-[13px] text-muted-foreground">{t("caseTasks.intro")}</p>
         </div>
         <NewTaskButton />
       </div>
@@ -41,12 +43,12 @@ export default async function CaseTasksPage({ params }: { params: Promise<{ case
               <header className="flex items-center justify-between px-3.5 py-2.5">
                 <div className="flex items-center gap-2 text-[13px] font-semibold">
                   <span className={cn("size-2 rounded-full", COLUMN_STYLE[status])} />
-                  {TASK_STATUS_LABELS[status]}
+                  {t(`enum.taskStatus.${status}`)}
                   <span className="rounded-full bg-card px-1.5 text-[11px] font-medium text-muted-foreground tabular-nums">{column.length}</span>
                 </div>
               </header>
               <div className="flex-1 space-y-2 px-2.5 pb-2.5">
-                {column.length === 0 && <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">No tasks</p>}
+                {column.length === 0 && <p className="rounded-lg border border-dashed px-3 py-6 text-center text-xs text-muted-foreground">{t("caseTasks.empty")}</p>}
                 {column.map((task) => (
                   <div key={task.id} id={`task-${task.id}`} className="scroll-mt-24 rounded-lg border bg-card p-3 shadow-[0_1px_2px_0_rgb(15_23_42/0.04)] target:ring-2 target:ring-primary/40">
                     <div className="flex items-start gap-2.5">
@@ -63,7 +65,7 @@ export default async function CaseTasksPage({ params }: { params: Promise<{ case
                       {task.createdByAI && (
                         <span className="inline-flex items-center gap-0.5 text-[11px] text-ai">
                           <SparklesIcon className="size-3" />
-                          AI-suggested
+                          {t("tasks.aiSuggested")}
                         </span>
                       )}
                     </div>
@@ -75,7 +77,7 @@ export default async function CaseTasksPage({ params }: { params: Promise<{ case
                             <span className="truncate">{shortName(task.assignedTo.name)}</span>
                           </>
                         ) : (
-                          <span>Unassigned</span>
+                          <span>{t("followUp.unassigned")}</span>
                         )}
                       </div>
                       <div className="flex shrink-0 items-center gap-2 text-[11px]">
@@ -85,7 +87,7 @@ export default async function CaseTasksPage({ params }: { params: Promise<{ case
                           </Link>
                         )}
                         {task.sourceMessageId && (
-                          <Link href={`/cases/${caseId}/discussion#message-${task.sourceMessageId}`} className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-primary" title="Created from discussion">
+                          <Link href={`/cases/${caseId}/discussion#message-${task.sourceMessageId}`} className="inline-flex items-center gap-0.5 text-muted-foreground hover:text-primary" title={t("caseTasks.fromDiscussion")}>
                             <MessageSquareIcon className="size-3" />
                           </Link>
                         )}

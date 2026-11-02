@@ -22,8 +22,9 @@ function SheetContent({
   className,
   children,
   side = "right",
+  closeLabel = "Close",
   ...props
-}: React.ComponentProps<typeof SheetPrimitive.Content> & { side?: "right" | "left" }) {
+}: React.ComponentProps<typeof SheetPrimitive.Content> & { side?: "right" | "left"; closeLabel?: string }) {
   return (
     <SheetPrimitive.Portal>
       <SheetPrimitive.Overlay className="fixed inset-0 z-50 bg-slate-950/25 data-[state=closed]:animate-out data-[state=closed]:fade-out-0 data-[state=open]:animate-in data-[state=open]:fade-in-0" />
@@ -41,7 +42,7 @@ function SheetContent({
         {children}
         <SheetPrimitive.Close className="absolute top-4 right-4 rounded-md p-1 text-muted-foreground opacity-70 transition-opacity hover:bg-accent hover:opacity-100 focus:outline-none [&_svg]:size-4">
           <XIcon />
-          <span className="sr-only">Close</span>
+          <span className="sr-only">{closeLabel}</span>
         </SheetPrimitive.Close>
       </SheetPrimitive.Content>
     </SheetPrimitive.Portal>

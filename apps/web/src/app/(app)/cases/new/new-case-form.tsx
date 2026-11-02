@@ -6,12 +6,13 @@ import { Input } from "@ccr/ui/components/input";
 import { Label } from "@ccr/ui/components/label";
 import { Spinner } from "@ccr/ui/components/misc";
 import { NativeSelect } from "@ccr/ui/components/native-select";
-import { CASE_SPECIALTIES, CASE_SPECIALTY_LABELS, PATIENT_SEX_LABELS, PATIENT_SEXES, USER_ROLE_LABELS, type CaseSpecialty, type PatientSex } from "@ccr/types";
+import { CASE_SPECIALTIES, PATIENT_SEXES, type CaseSpecialty, type PatientSex } from "@ccr/types";
 import { FlaskConicalIcon, FolderPlusIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { useI18n } from "@/i18n/client";
 import type { UserSummary } from "@/lib/dto";
 import { createCaseAction } from "@/server/actions/cases";
 
@@ -42,6 +43,7 @@ export function NewCaseForm({ members, organizationId }: { members: UserSummary[
   const [confirmSynthetic, setConfirmSynthetic] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
+  const { t } = useI18n();
 
   function toggle(id: string) {
     setTeam((previous) => {
@@ -63,7 +65,7 @@ export function NewCaseForm({ members, organizationId }: { members: UserSummary[
         dateOfBirth,
         sex,
         primaryDiagnosis,
-        title: title || `${primaryDiagnosis}: case review`,
+        title: title || t("newCase.defaultTitle", { diagnosis: primaryDiagnosis }),
         specialty,
         memberIds: [...team],
         confirmSynthetic: confirmSynthetic as true,
@@ -72,62 +74,68 @@ export function NewCaseForm({ members, organizationId }: { members: UserSummary[
         setError(result.error);
         return;
       }
-      toast.success("Case room created", { description: "Upload clinical documents to build the shared record." });
+      toast.success(t("newCase.created"), { description: t("newCase.createdDescription") });
       router.push(`/cases/${result.data.id}/documents`);
     });
   }
 
   return (
     <form onSubmit={submit} className="rounded-xl border bg-card px-6">
-      <Section title="Synthetic patient" description="Use fictional data only. A synthetic MRN is generated automatically.">
+      <Section title={t("newCase.patient.title")} description={t("newCase.patient.description")}>
         <div className="grid gap-3 sm:grid-cols-2">
           <div className="space-y-1.5">
-            <Label htmlFor="firstName">First name</Label>
+            <Label htmlFor="firstName">{t("newCase.firstName")}</Label>
             <Input id="firstName" value={firstName} onChange={(e) => setFirstName(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="lastName">Last name</Label>
+            <Label htmlFor="lastName">{t("newCase.lastName")}</Label>
             <Input id="lastName" value={lastName} onChange={(e) => setLastName(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="dob">Date of birth</Label>
+            <Label htmlFor="dob">{t("newCase.dob")}</Label>
             <Input id="dob" type="date" value={dateOfBirth} onChange={(e) => setDateOfBirth(e.target.value)} required />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="sex">Sex</Label>
+            <Label htmlFor="sex">{t("newCase.sex")}</Label>
             <NativeSelect id="sex" value={sex} onChange={(e) => setSex(e.target.value as PatientSex)}>
               {PATIENT_SEXES.map((value) => (
                 <option key={value} value={value}>
-                  {PATIENT_SEX_LABELS[value]}
+                  {t(`enum.sex.${value}`)}
                 </option>
               ))}
             </NativeSelect>
           </div>
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="diagnosis">Primary diagnosis</Label>
-          <Input id="diagnosis" value={primaryDiagnosis} onChange={(e) => setPrimaryDiagnosis(e.target.value)} placeholder="Hepatocellular carcinoma" required />
+          <Label htmlFor="diagnosis">{t("newCase.diagnosis")}</Label>
+          <Input
+            id="diagnosis"
+            value={primaryDiagnosis}
+            onChange={(e) => setPrimaryDiagnosis(e.target.value)}
+            placeholder={t("newCase.diagnosisPlaceholder")}
+            required
+          />
         </div>
       </Section>
 
-      <Section title="Case room" description="The shared workspace the care team collaborates in.">
+      <Section title={t("newCase.room.title")} description={t("newCase.room.description")}>
         <div className="space-y-1.5">
-          <Label htmlFor="title">Case title</Label>
-          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder="Liver mass: tumor board work-up" />
+          <Label htmlFor="title">{t("newCase.caseTitle")}</Label>
+          <Input id="title" value={title} onChange={(e) => setTitle(e.target.value)} placeholder={t("newCase.caseTitlePlaceholder")} />
         </div>
         <div className="space-y-1.5">
-          <Label htmlFor="specialty">Specialty</Label>
+          <Label htmlFor="specialty">{t("newCase.specialty")}</Label>
           <NativeSelect id="specialty" value={specialty} onChange={(e) => setSpecialty(e.target.value as CaseSpecialty)}>
             {CASE_SPECIALTIES.map((value) => (
               <option key={value} value={value}>
-                {CASE_SPECIALTY_LABELS[value]}
+                {t(`enum.specialty.${value}`)}
               </option>
             ))}
           </NativeSelect>
         </div>
       </Section>
 
-      <Section title="Care team" description="You are added automatically. Invite more specialists at any time.">
+      <Section title={t("cases.col.careTeam")} description={t("newCase.team.description")}>
         <div className="grid gap-1.5 sm:grid-cols-2">
           {members.map((member) => (
             <label key={member.id} className="flex cursor-pointer items-center gap-2.5 rounded-lg border px-2.5 py-2 hover:bg-accent has-[[data-state=checked]]:border-primary/40 has-[[data-state=checked]]:bg-primary/5">
@@ -135,7 +143,7 @@ export function NewCaseForm({ members, organizationId }: { members: UserSummary[
               <UserAvatar user={member} size="sm" />
               <span className="min-w-0">
                 <span className="block truncate text-[13px] font-medium">{member.name}</span>
-                <span className="block truncate text-[11px] text-muted-foreground">{member.specialty ?? USER_ROLE_LABELS[member.role]}</span>
+                <span className="block truncate text-[11px] text-muted-foreground">{member.specialty ?? t(`enum.role.${member.role}`)}</span>
               </span>
             </label>
           ))}
@@ -147,19 +155,19 @@ export function NewCaseForm({ members, organizationId }: { members: UserSummary[
           <Checkbox checked={confirmSynthetic} onCheckedChange={(checked) => setConfirmSynthetic(checked === true)} className="mt-0.5" />
           <span>
             <span className="flex items-center gap-1.5 font-medium">
-              <FlaskConicalIcon className="size-3.5" /> This is a synthetic demo patient
+              <FlaskConicalIcon className="size-3.5" /> {t("newCase.synthetic")}
             </span>
-            <span className="text-muted-foreground">I confirm no real patient data will be entered in this environment.</span>
+            <span className="text-muted-foreground">{t("newCase.syntheticConfirm")}</span>
           </span>
         </label>
         {error && <p className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</p>}
         <div className="flex justify-end gap-2">
           <Button type="button" variant="outline" onClick={() => router.back()}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button type="submit" disabled={pending || !confirmSynthetic}>
             {pending ? <Spinner /> : <FolderPlusIcon />}
-            Create case room
+            {t("newCase.submit")}
           </Button>
         </div>
       </div>

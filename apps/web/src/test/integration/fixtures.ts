@@ -49,6 +49,7 @@ export async function sessionUserFor(memberId: string): Promise<SessionUser> {
     title: member.title,
     organizationId: member.organizationId,
     organizationName: member.organization.name,
+    organizationLocale: member.organization.locale,
     organizations: memberships.map((m) => ({ id: m.organizationId, name: m.organization.name, role: m.role })),
     sessionVersion: member.identity.sessionVersion,
   };

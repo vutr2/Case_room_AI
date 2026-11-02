@@ -7,8 +7,8 @@ import { DocumentTypeBadge, ProcessingBadge } from "@/components/shared/badges";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TimeAgo } from "@/components/shared/misc";
 import { UserAvatar } from "@/components/shared/user-avatar";
+import { getI18n, localizeServerMessage } from "@/i18n/server";
 import { shortName } from "@/lib/activity";
-import { formatDate } from "@/lib/format";
 import { loadCasePage } from "@/server/case-page";
 
 export default async function DocumentsPage({
@@ -20,6 +20,7 @@ export default async function DocumentsPage({
 }) {
   const { caseId } = await loadCasePage(params);
   const { doc } = await searchParams;
+  const { t, fmt } = await getI18n();
 
   const documents = await prisma.clinicalDocument.findMany({
     where: { caseRoomId: caseId },
@@ -58,7 +59,8 @@ export default async function DocumentsPage({
         rawText: full.rawText,
         fileName: full.fileName,
         processingStatus: full.processingStatus,
-        processingError: full.processingError,
+        // Stored in English by the services; shown in the reader's language.
+        processingError: full.processingError ? await localizeServerMessage(full.processingError) : null,
         timelineEvents: full.timelineEvents.map((event) => ({ ...event, date: toIsoDate(event.date) })),
       };
     }
@@ -68,25 +70,23 @@ export default async function DocumentsPage({
     <div className="mx-auto max-w-5xl space-y-5 px-6 py-6 lg:px-8">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Clinical documents</h2>
-          <p className="text-[13px] text-muted-foreground">
-            Notes, labs, imaging and pathology reports. Imaging appears as text reports only; the AI never interprets images.
-          </p>
+          <h2 className="text-base font-semibold">{t("documents.title")}</h2>
+          <p className="text-[13px] text-muted-foreground">{t("documents.intro")}</p>
         </div>
         <UploadButton />
       </div>
 
       {documents.length === 0 ? (
-        <EmptyState icon={FileTextIcon} title="No documents yet" description="Upload PDF or text reports. The AI extracts timeline events and updates the shared memory automatically." />
+        <EmptyState icon={FileTextIcon} title={t("documents.empty.title")} description={t("documents.empty.text")} />
       ) : (
         <div className="overflow-hidden rounded-xl border bg-card">
           <table className="w-full text-[13px]">
             <thead className="border-b bg-muted/40 text-left text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">
               <tr>
-                <th className="px-4 py-2.5">Document</th>
-                <th className="px-3 py-2.5">Date</th>
-                <th className="px-3 py-2.5">Uploaded by</th>
-                <th className="px-3 py-2.5">AI</th>
+                <th className="px-4 py-2.5">{t("documents.col.document")}</th>
+                <th className="px-3 py-2.5">{t("documents.col.date")}</th>
+                <th className="px-3 py-2.5">{t("documents.col.uploadedBy")}</th>
+                <th className="px-3 py-2.5">{t("documents.col.ai")}</th>
               </tr>
             </thead>
             <tbody className="divide-y">
@@ -106,7 +106,7 @@ export default async function DocumentsPage({
                       </span>
                     </Link>
                   </td>
-                  <td className="px-3 py-3 whitespace-nowrap">{formatDate(document.documentDate)}</td>
+                  <td className="px-3 py-3 whitespace-nowrap">{fmt.date(document.documentDate)}</td>
                   <td className="px-3 py-3">
                     <div className="flex items-center gap-2">
                       <UserAvatar user={document.uploadedBy} size="xs" />
@@ -120,7 +120,7 @@ export default async function DocumentsPage({
                     <ProcessingBadge status={document.processingStatus} />
                     {document._count.timelineEvents > 0 && (
                       <div className="mt-1 text-[11px] text-muted-foreground">
-                        {document._count.timelineEvents} timeline event{document._count.timelineEvents === 1 ? "" : "s"}
+                        {t.plural("count.timelineEvents", document._count.timelineEvents)}
                       </div>
                     )}
                   </td>

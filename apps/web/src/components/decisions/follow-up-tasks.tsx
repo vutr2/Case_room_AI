@@ -6,11 +6,12 @@ import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, D
 import { Input } from "@ccr/ui/components/input";
 import { Spinner } from "@ccr/ui/components/misc";
 import { NativeSelect } from "@ccr/ui/components/native-select";
-import { TASK_PRIORITIES, TASK_PRIORITY_LABELS, type TaskPriority } from "@ccr/types";
+import { TASK_PRIORITIES, type TaskPriority } from "@ccr/types";
 import { SparklesIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/client";
 import type { UserSummary } from "@/lib/dto";
 import { createFollowUpTasksAction, suggestFollowUpTasksAction } from "@/server/actions/decisions";
 
@@ -31,6 +32,7 @@ export function FollowUpTasks({ caseId, decisionId, number, members }: { caseId:
   const [suggestions, setSuggestions] = useState<Suggestion[]>([]);
   const [loading, startLoading] = useTransition();
   const [saving, startSaving] = useTransition();
+  const { t } = useI18n();
 
   function suggest() {
     startLoading(async () => {
@@ -57,7 +59,7 @@ export function FollowUpTasks({ caseId, decisionId, number, members }: { caseId:
         toast.error(result.error);
         return;
       }
-      toast.success(`${tasks.length} follow-up task${tasks.length === 1 ? "" : "s"} created`, { description: "Labeled as AI-suggested, confirmed by you." });
+      toast.success(t.plural("followUp.created", tasks.length), { description: t("followUp.createdDescription") });
       setOpen(false);
       router.refresh();
     });
@@ -68,21 +70,19 @@ export function FollowUpTasks({ caseId, decisionId, number, members }: { caseId:
     <>
       <Button variant="ai-outline" size="sm" onClick={suggest} disabled={loading}>
         {loading ? <Spinner /> : <SparklesIcon />}
-        Suggest follow-up tasks
+        {t("followUp.suggest")}
       </Button>
       <Dialog open={open} onOpenChange={(value) => !saving && setOpen(value)}>
-        <DialogContent className="sm:max-w-3xl">
+        <DialogContent closeLabel={t("common.close")} className="sm:max-w-3xl">
           <DialogHeader>
             <DialogTitle className="flex items-center gap-2">
               <SparklesIcon className="size-4 text-ai" />
-              AI-suggested follow-up for Decision #{number}
+              {t("followUp.title", { number })}
             </DialogTitle>
-            <DialogDescription>
-              Suggested by {provider}. Nothing is created until you confirm. Edit titles, owners and due dates as needed; medication orders are never suggested.
-            </DialogDescription>
+            <DialogDescription>{t("followUp.description", { provider })}</DialogDescription>
           </DialogHeader>
           <div className="max-h-[55vh] space-y-2 overflow-y-auto">
-            {suggestions.length === 0 && <p className="py-6 text-center text-[13px] text-muted-foreground">The AI did not find follow-up tasks for this decision.</p>}
+            {suggestions.length === 0 && <p className="py-6 text-center text-[13px] text-muted-foreground">{t("followUp.none")}</p>}
             {suggestions.map((suggestion, index) => (
               <div key={index} className="flex gap-3 rounded-lg border p-3 data-[off=true]:opacity-50" data-off={!suggestion.selected}>
                 <Checkbox className="mt-2" checked={suggestion.selected} onCheckedChange={(checked) => update(index, { selected: checked === true })} />
@@ -91,7 +91,7 @@ export function FollowUpTasks({ caseId, decisionId, number, members }: { caseId:
                   <p className="text-xs text-muted-foreground">{suggestion.description}</p>
                   <div className="grid gap-2 sm:grid-cols-3">
                     <NativeSelect value={suggestion.assigneeId ?? ""} onChange={(e) => update(index, { assigneeId: e.target.value || null })} className="h-8 text-xs">
-                      <option value="">Unassigned</option>
+                      <option value="">{t("followUp.unassigned")}</option>
                       {members.map((member) => (
                         <option key={member.id} value={member.id}>
                           {member.name}
@@ -101,7 +101,7 @@ export function FollowUpTasks({ caseId, decisionId, number, members }: { caseId:
                     <NativeSelect value={suggestion.priority} onChange={(e) => update(index, { priority: e.target.value as TaskPriority })} className="h-8 text-xs">
                       {TASK_PRIORITIES.map((p) => (
                         <option key={p} value={p}>
-                          {TASK_PRIORITY_LABELS[p]} priority
+                          {t("followUp.priority", { priority: t(`enum.taskPriority.${p}`) })}
                         </option>
                       ))}
                     </NativeSelect>
@@ -113,11 +113,11 @@ export function FollowUpTasks({ caseId, decisionId, number, members }: { caseId:
           </div>
           <DialogFooter>
             <Button variant="outline" onClick={() => setOpen(false)} disabled={saving}>
-              Cancel
+              {t("common.cancel")}
             </Button>
             <Button onClick={create} disabled={saving || selectedCount === 0}>
               {saving && <Spinner />}
-              Create {selectedCount} task{selectedCount === 1 ? "" : "s"}
+              {t.plural("followUp.create", selectedCount)}
             </Button>
           </DialogFooter>
         </DialogContent>

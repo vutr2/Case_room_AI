@@ -3,6 +3,7 @@
 import { cn } from "@ccr/ui/lib/utils";
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import { useI18n } from "@/i18n/client";
 
 export interface CaseTabCounts {
   timeline: number;
@@ -14,21 +15,22 @@ export interface CaseTabCounts {
 
 export function CaseTabs({ caseId, counts }: { caseId: string; counts: CaseTabCounts }) {
   const pathname = usePathname();
+  const { t } = useI18n();
   const base = `/cases/${caseId}`;
   const tabs = [
-    { href: base, label: "Overview" },
-    { href: `${base}/timeline`, label: "Timeline", count: counts.timeline },
-    { href: `${base}/discussion`, label: "Discussion", count: counts.discussion },
-    { href: `${base}/documents`, label: "Documents", count: counts.documents },
-    { href: `${base}/decisions`, label: "Decisions", count: counts.decisions, highlight: counts.decisions > 0 },
-    { href: `${base}/tasks`, label: "Tasks", count: counts.tasks },
-    { href: `${base}/tumor-board`, label: "Tumor Board" },
-    { href: `${base}/handoff`, label: "Handoff" },
-    { href: `${base}/audit`, label: "Audit Log" },
+    { href: base, label: t("caseTab.overview") },
+    { href: `${base}/timeline`, label: t("caseTab.timeline"), count: counts.timeline },
+    { href: `${base}/discussion`, label: t("caseTab.discussion"), count: counts.discussion },
+    { href: `${base}/documents`, label: t("caseTab.documents"), count: counts.documents },
+    { href: `${base}/decisions`, label: t("caseTab.decisions"), count: counts.decisions, highlight: counts.decisions > 0 },
+    { href: `${base}/tasks`, label: t("caseTab.tasks"), count: counts.tasks },
+    { href: `${base}/tumor-board`, label: t("caseTab.tumorBoard") },
+    { href: `${base}/handoff`, label: t("caseTab.handoff") },
+    { href: `${base}/audit`, label: t("caseTab.audit") },
   ];
 
   return (
-    <nav className="no-print -mb-px flex gap-1 overflow-x-auto border-b bg-card px-5 scrollbar-thin lg:px-7" aria-label="Case sections">
+    <nav className="no-print -mb-px flex gap-1 overflow-x-auto border-b bg-card px-5 scrollbar-thin lg:px-7" aria-label={t("caseTab.sections")}>
       {tabs.map((tab) => {
         const active = tab.href === base ? pathname === base : pathname.startsWith(tab.href);
         return (

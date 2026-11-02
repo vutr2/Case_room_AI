@@ -1,7 +1,8 @@
-import { CASE_SPECIALTY_LABELS, type CaseSpecialty } from "@ccr/types";
+import type { CaseSpecialty } from "@ccr/types";
 import { BrainCircuitIcon, CheckSquareIcon, ScaleIcon, ShieldCheckIcon } from "lucide-react";
 import Link from "next/link";
-import { formatDate, pluralize } from "@/lib/format";
+import { rich } from "@/i18n/rich";
+import { getI18n } from "@/i18n/server";
 import { DueChip } from "../tasks/task-row";
 import { TimeAgo } from "../shared/misc";
 import { AIActivityIndicator, CareTeamPanel } from "./right-rail-live";
@@ -37,19 +38,20 @@ function RailSection({ title, children }: { title: string; children: React.React
   );
 }
 
-export function CaseRightRail(props: RightRailProps) {
+export async function CaseRightRail(props: RightRailProps) {
   const { caseId, ai } = props;
+  const { t, fmt } = await getI18n();
   return (
     <aside className="no-print hidden w-80 shrink-0 space-y-6 overflow-y-auto border-l bg-card/60 px-5 py-5 scrollbar-thin xl:block">
-      <RailSection title="Case status">
+      <RailSection title={t("case.statusLabel")}>
         <dl className="grid grid-cols-[auto_1fr] gap-x-3 gap-y-1.5 text-[12.5px]">
-          <dt className="text-muted-foreground">Specialty</dt>
-          <dd className="text-right font-medium">{CASE_SPECIALTY_LABELS[props.specialty]}</dd>
-          <dt className="text-muted-foreground">Opened</dt>
+          <dt className="text-muted-foreground">{t("newCase.specialty")}</dt>
+          <dd className="text-right font-medium">{t(`enum.specialty.${props.specialty}`)}</dd>
+          <dt className="text-muted-foreground">{t("rail.opened")}</dt>
           <dd className="text-right">
-            {formatDate(props.createdAt)} · {props.createdBy}
+            {fmt.date(props.createdAt)} · {props.createdBy}
           </dd>
-          <dt className="text-muted-foreground">Last activity</dt>
+          <dt className="text-muted-foreground">{t("rail.lastActivity")}</dt>
           <dd className="text-right">
             <TimeAgo date={props.updatedAt} />
           </dd>
@@ -58,8 +60,8 @@ export function CaseRightRail(props: RightRailProps) {
 
       <CareTeamPanel />
 
-      <RailSection title="Pending for you">
-        {props.pendingReviews.length === 0 && props.myTasks.length === 0 && <p className="text-[12.5px] text-muted-foreground">Nothing is waiting on you in this case.</p>}
+      <RailSection title={t("rail.pending")}>
+        {props.pendingReviews.length === 0 && props.myTasks.length === 0 && <p className="text-[12.5px] text-muted-foreground">{t("rail.nothingPending")}</p>}
         <ul className="space-y-1.5">
           {props.pendingReviews.map((review) => (
             <li key={review.decisionId}>
@@ -69,7 +71,7 @@ export function CaseRightRail(props: RightRailProps) {
               >
                 <ScaleIcon className="mt-0.5 size-3.5 shrink-0" />
                 <span>
-                  <span className="font-semibold">Review Decision #{review.number}</span>
+                  <span className="font-semibold">{t("rail.reviewDecision", { number: review.number })}</span>
                   <span className="block text-amber-800/80">{review.title}</span>
                 </span>
               </Link>
@@ -89,25 +91,26 @@ export function CaseRightRail(props: RightRailProps) {
         </ul>
       </RailSection>
 
-      <RailSection title="AI context">
+      <RailSection title={t("rail.aiContext")}>
         <div className="space-y-3 rounded-xl border border-ai-border bg-ai-soft/60 p-3">
           <div className="flex items-center gap-2 text-[12.5px] font-medium text-ai">
             <BrainCircuitIcon className="size-4" />
-            {ai.label}
+            {ai.isDemo ? t("ai.demoLabel") : ai.label}
           </div>
           <p className="text-[12px] leading-relaxed text-foreground/80">
-            The assistant answers from this case&apos;s authorized record only: {pluralize(ai.documents, "document")}, {pluralize(ai.timeline, "timeline event")},{" "}
-            {pluralize(ai.decisions, "decision")}, {pluralize(ai.tasks, "task")} and the recent discussion ({pluralize(ai.messages, "message")}).
+            {t("rail.aiScope", {
+              documents: t.plural("count.documents", ai.documents),
+              timeline: t.plural("count.timelineEvents", ai.timeline),
+              decisions: t.plural("count.decisions", ai.decisions),
+              tasks: t.plural("count.tasks", ai.tasks),
+              messages: t.plural("count.messages", ai.messages),
+            })}
           </p>
           <div className="flex items-center justify-between text-[11px] text-muted-foreground">
-            <span>Shared memory {ai.memoryVersion ? `v${ai.memoryVersion}` : "not built"}</span>
-            {ai.memoryUpdatedAt && (
-              <span>
-                updated <TimeAgo date={ai.memoryUpdatedAt} />
-              </span>
-            )}
+            <span>{t("rail.memory", { version: ai.memoryVersion ? `v${ai.memoryVersion}` : t("rail.memoryNotBuilt") })}</span>
+            {ai.memoryUpdatedAt && <span>{rich(t("rail.memoryUpdated"), { time: <TimeAgo date={ai.memoryUpdatedAt} /> })}</span>}
           </div>
-          {!ai.isDemo && <div className="text-[11px] text-muted-foreground">Model: {ai.model}</div>}
+          {!ai.isDemo && <div className="text-[11px] text-muted-foreground">{t("rail.model", { model: ai.model })}</div>}
           <AIActivityIndicator />
         </div>
       </RailSection>
@@ -115,7 +118,7 @@ export function CaseRightRail(props: RightRailProps) {
       <div className="flex items-start gap-2 rounded-xl border border-approved-border bg-approved-soft p-3 text-[12px] leading-relaxed text-approved">
         <ShieldCheckIcon className="mt-0.5 size-4 shrink-0" />
         <span>
-          <span className="font-semibold">AI proposes. Humans decide.</span> Clinical decisions become final only after every requested reviewer approves.
+          <span className="font-semibold">{t("rail.humansDecide")}</span> {t("rail.humansDecideText")}
         </span>
       </div>
     </aside>

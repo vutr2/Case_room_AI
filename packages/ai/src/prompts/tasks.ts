@@ -124,3 +124,18 @@ export function followUpTasksPrompt(input: {
     "- These are suggestions; a human will confirm each one before it is created.",
   ].join("\n");
 }
+
+/**
+ * Appended to every task prompt for organizations working in Vietnamese. It
+ * sits after the case data, so the cached system prompt and record stay the same.
+ */
+export function withOutputLanguage(ctx: Pick<CaseContext, "outputLanguage">, prompt: string): string {
+  if (ctx.outputLanguage !== "vi") return prompt;
+  return [
+    prompt,
+    "",
+    "Language: write every free-text field of your output in Vietnamese (tiếng Việt), in the concise style of a Vietnamese clinical note.",
+    "Keep record keys (for example D3, T2, DEC1), clinical values, units, drug names, gene names and test names exactly as written in the record.",
+    "Quotes must stay verbatim in the language of the source record: never translate a quote.",
+  ].join("\n");
+}

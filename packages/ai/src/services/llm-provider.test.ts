@@ -78,6 +78,20 @@ describe("LLMCaseAIProvider source grounding", () => {
     expect(request.context[0]?.text).toContain('<document key="D3"');
   });
 
+  it("asks for Vietnamese in the task prompt of a Vietnamese organization, leaving the system prompt as it is", async () => {
+    const respond = () => new FakeLLM({ missing_information: { items: [] } });
+    const english = respond();
+    const vietnamese = respond();
+    await new LLMCaseAIProvider(english).identifyMissingInformation(syntheticCase());
+    await new LLMCaseAIProvider(vietnamese).identifyMissingInformation({ ...syntheticCase(), outputLanguage: "vi" });
+    const [en, vi] = [english.requests[0]!, vietnamese.requests[0]!];
+    expect(vi.system).toBe(en.system);
+    expect(en.prompt).not.toMatch(/Vietnamese/);
+    expect(vi.prompt.startsWith(en.prompt)).toBe(true);
+    expect(vi.prompt).toMatch(/write every free-text field of your output in Vietnamese/);
+    expect(vi.prompt).toMatch(/never translate a quote/);
+  });
+
   it("drops an invalid citation even when only one document is processed", async () => {
     const ctx = syntheticCase();
     const llm = new FakeLLM({

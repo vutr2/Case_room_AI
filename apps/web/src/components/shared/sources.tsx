@@ -4,7 +4,6 @@ import { Popover, PopoverContent, PopoverTrigger } from "@ccr/ui/components/popo
 import { Tooltip, TooltipContent, TooltipTrigger } from "@ccr/ui/components/tooltip";
 import { cn } from "@ccr/ui/lib/utils";
 import type { SourceRef } from "@ccr/types";
-import { DOCUMENT_TYPE_LABELS } from "@ccr/types";
 import {
   ArrowUpRightIcon,
   CalendarClockIcon,
@@ -17,7 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { Fragment, type ReactNode } from "react";
-import { formatDate } from "@/lib/format";
+import { useI18n } from "@/i18n/client";
 
 const KIND_ICON = {
   document: FileTextIcon,
@@ -43,6 +42,7 @@ export function sourceHref(caseId: string, source: SourceRef): string {
 }
 
 function SourceDetails({ caseId, source }: { caseId: string; source: SourceRef }) {
+  const { t, fmt } = useI18n();
   const Icon = KIND_ICON[source.kind];
   return (
     <div className="space-y-2.5">
@@ -51,8 +51,8 @@ function SourceDetails({ caseId, source }: { caseId: string; source: SourceRef }
         <div className="min-w-0">
           <div className="text-[13px] leading-snug font-medium">{source.label}</div>
           <div className="text-xs text-muted-foreground">
-            {source.documentType ? `${DOCUMENT_TYPE_LABELS[source.documentType]} · ` : ""}
-            {source.date ? formatDate(source.date) : "Undated"}
+            {source.documentType ? `${t(`enum.documentType.${source.documentType}`)} · ` : ""}
+            {source.date ? fmt.date(source.date) : t("sources.undated")}
           </div>
         </div>
       </div>
@@ -62,19 +62,20 @@ function SourceDetails({ caseId, source }: { caseId: string; source: SourceRef }
           {source.excerpt}
           {source.verified && (
             <div className="mt-1.5 flex items-center gap-1 text-[10px] font-medium text-approved">
-              <ShieldCheckIcon className="size-3" /> Excerpt verified verbatim in the source
+              <ShieldCheckIcon className="size-3" /> {t("sources.verified")}
             </div>
           )}
         </blockquote>
       )}
       <Link href={sourceHref(caseId, source)} className="inline-flex items-center gap-1 text-xs font-medium text-source hover:underline">
-        Open source <ArrowUpRightIcon className="size-3" />
+        {t("sources.open")} <ArrowUpRightIcon className="size-3" />
       </Link>
     </div>
   );
 }
 
 export function SourceChip({ caseId, source, index }: { caseId: string; source: SourceRef; index?: number }) {
+  const { fmt } = useI18n();
   const Icon = KIND_ICON[source.kind];
   return (
     <Popover>
@@ -88,7 +89,7 @@ export function SourceChip({ caseId, source, index }: { caseId: string; source: 
           )}
           <Icon className="size-3.5 shrink-0" />
           <span className="truncate font-medium">{source.label}</span>
-          {source.date && <span className="shrink-0 text-source/70">· {formatDate(source.date, { year: false })}</span>}
+          {source.date && <span className="shrink-0 text-source/70">· {fmt.date(source.date, { year: false })}</span>}
         </button>
       </PopoverTrigger>
       <PopoverContent align="start" className="w-80">
@@ -98,11 +99,12 @@ export function SourceChip({ caseId, source, index }: { caseId: string; source: 
   );
 }
 
-export function SourceList({ caseId, sources, label = "Sources" }: { caseId: string; sources: SourceRef[]; label?: string }) {
+export function SourceList({ caseId, sources, label }: { caseId: string; sources: SourceRef[]; label?: string }) {
+  const { t } = useI18n();
   if (sources.length === 0) return null;
   return (
     <div className="space-y-1.5">
-      <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{label}</div>
+      <div className="text-[11px] font-semibold tracking-wide text-muted-foreground uppercase">{label ?? t("sources.label")}</div>
       <div className="flex flex-wrap gap-1.5">
         {sources.map((source, index) => (
           <SourceChip key={`${source.kind}-${source.id}`} caseId={caseId} source={source} index={index + 1} />
@@ -113,6 +115,7 @@ export function SourceList({ caseId, sources, label = "Sources" }: { caseId: str
 }
 
 function CitationMarker({ caseId, n, source }: { caseId: string; n: number; source: SourceRef | undefined }) {
+  const { fmt } = useI18n();
   if (!source) return null;
   return (
     <Tooltip>
@@ -126,7 +129,7 @@ function CitationMarker({ caseId, n, source }: { caseId: string; n: number; sour
       </TooltipTrigger>
       <TooltipContent className="max-w-sm">
         <div className="font-medium">{source.label}</div>
-        {source.date && <div className="text-white/70">{formatDate(source.date)}</div>}
+        {source.date && <div className="text-white/70">{fmt.date(source.date)}</div>}
         {source.excerpt && <div className="mt-1 text-white/90 italic">“{source.excerpt}”</div>}
       </TooltipContent>
     </Tooltip>

@@ -22,6 +22,7 @@ Clinical Case Room is open source under the [GNU AGPL-3.0](LICENSE). Contributio
 | **Human in the loop** | Decisions need approval from every requested reviewer; briefs and handoffs are drafts until a clinician approves them. |
 | **Auditability** | Every upload, AI action, decision, approval and task change is recorded in an append-only audit log. |
 | **Organizations and accounts** | One account in several organizations, roles per organization, emailed invitations, signup confirmed by email, password reset and change (ends other sessions), and deactivating members without losing their history. |
+| **English and Vietnamese** | Each person picks their interface language (sign-in page or user menu). Each organization has a language (Settings) that AI drafts, the text the system writes into cases and invitation emails use. |
 
 | Team discussion with evidence-grounded AI | Human approval of a proposed decision |
 |---|---|
@@ -134,6 +135,7 @@ What has actually been exercised, so nobody mistakes "implemented" for "verified
 | Runtime | Node 22 on Linux (CI), Node 26 on macOS (development); PostgreSQL 16 | Other Node or PostgreSQL versions |
 | Browsers | Chromium, through the Playwright end-to-end suite | Safari, Firefox, mobile browsers |
 | Container | Image build and smoke test (sign-in, upload, stored original) in CI on Linux | Orchestrators (Kubernetes, ECS), several instances behind a load balancer |
+| Languages | English and Vietnamese interface, end to end (every page in Vietnamese at 1280 px); Vietnamese instructions to the model checked as prompt text | Quality of Vietnamese AI drafts from a real model; review of the Vietnamese wording by clinicians |
 | AI | The offline demo engine, end to end. The Anthropic and OpenAI adapters with mocked SDK responses (structured output, refusals, truncation, retries) | **Live calls to Anthropic or OpenAI**: answer quality, latency and cost with a real model |
 | Email | Test transports; SMTP through nodemailer against a local SMTP server | A real mail provider (deliverability, spam filtering, provider limits) |
 | File storage | Local disk (unit, end-to-end, container smoke) | A real S3 bucket (the S3 code path is covered only by unit tests) |

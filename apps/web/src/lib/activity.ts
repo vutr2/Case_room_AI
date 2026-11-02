@@ -1,8 +1,10 @@
-import { DOCUMENT_TYPE_LABELS, type ActorType, type DocumentType } from "@ccr/types";
+import { CASE_STATUSES, DOCUMENT_TYPES, TASK_STATUSES, USER_ROLES, type ActorType, type CaseStatus, type DocumentType, type TaskStatus, type UserRole } from "@ccr/types";
+import type { Translator } from "@/i18n/translate";
 
 /**
  * Human-readable sentences for audit events ("Dr. Nguyen uploaded a pathology
- * report."). Shared by the dashboard activity feed and the audit log views.
+ * report."), in the reader's language. Shared by the dashboard activity feed
+ * and the audit log views.
  */
 
 export type ActivityKind = "ai" | "decision" | "document" | "task" | "case" | "brief" | "message" | "auth" | "org";
@@ -14,12 +16,16 @@ export interface ActivityInput {
   user: { name: string } | null;
 }
 
-/** "Dr. Minh Nguyen" -> "Dr. Nguyen"; other names are kept as-is. */
+/** Clinician titles kept in short names: "Dr. Minh Nguyen" -> "Dr. Nguyen", "BS. Trần Minh Khoa" -> "BS. Khoa". */
+const TITLES = ["Dr. ", "BS. ", "ThS. ", "TS. "];
+
+/** A clinician's title with their given name (the last word, in English and Vietnamese order); other names are kept as-is. */
 export function shortName(name: string | null | undefined): string {
   if (!name) return "Someone";
-  if (name.startsWith("Dr. ")) {
-    const parts = name.slice(4).trim().split(/\s+/);
-    return `Dr. ${parts.at(-1)}`;
+  const title = TITLES.find((prefix) => name.startsWith(prefix));
+  if (title) {
+    const parts = name.slice(title.length).trim().split(/\s+/);
+    return `${title}${parts.at(-1)}`;
   }
   return name;
 }
@@ -36,99 +42,115 @@ function str(value: unknown): string | null {
   return typeof value === "string" && value.trim() ? value : null;
 }
 
-export function describeActivity(event: ActivityInput): { text: string; kind: ActivityKind } {
+function oneOf<T extends string>(values: readonly T[], value: unknown): T | null {
+  return typeof value === "string" && (values as readonly string[]).includes(value) ? (value as T) : null;
+}
+
+export function describeActivity(event: ActivityInput, t: Translator): { text: string; kind: ActivityKind } {
   const m = meta(event.metadata);
-  const who = shortName(event.user?.name);
+  const who = event.user?.name ? shortName(event.user.name) : t("activity.someone");
   const title = str(m.title);
   const quoted = title ? ` “${title}”` : "";
-  const decision = typeof m.number === "number" ? `Decision #${m.number}` : "a decision";
-  const docType = str(m.documentType) as DocumentType | null;
-  const docLabel = docType && DOCUMENT_TYPE_LABELS[docType] ? DOCUMENT_TYPE_LABELS[docType].toLowerCase() : "document";
+  const quotedOr = (fallback: "activity.aDocument" | "activity.aBrief") => quoted || ` ${t(fallback)}`;
+  const decision = typeof m.number === "number" ? t("activity.decisionNumber", { number: m.number }) : t("activity.aDecision");
+  const docType = oneOf<DocumentType>(DOCUMENT_TYPES, m.documentType);
+  const docLabel = docType ? t(`enum.documentType.${docType}`).toLowerCase() : t("activity.document");
+  const document = t.locale === "en" ? `${article(docLabel)} ${docLabel}` : docLabel;
+  const member = str(m.memberName) ?? t("activity.aMember");
+  const caseStatus = oneOf<CaseStatus>(CASE_STATUSES, m.to);
+  const taskStatus = oneOf<TaskStatus>(TASK_STATUSES, m.to);
+  const role = oneOf<UserRole>(USER_ROLES, m.to);
+  const lower = (text: string) => (t.locale === "en" ? text.toLowerCase() : text.charAt(0).toLowerCase() + text.slice(1));
 
   switch (event.action) {
     case "auth.signed_in":
-      return { text: `${who} signed in.`, kind: "auth" };
+      return { text: t("activity.signedIn", { who }), kind: "auth" };
     case "org.created":
-      return { text: `${who} created the organization.`, kind: "org" };
+      return { text: t("activity.orgCreated", { who }), kind: "org" };
     case "org.member_added":
-      return { text: `${who} added ${str(m.memberName) ?? "a member"} to the organization.`, kind: "org" };
+      return { text: t("activity.memberAdded", { who, member }), kind: "org" };
     case "org.member_invited":
-      return { text: `${who} invited ${str(m.email) ?? "a new member"}.`, kind: "org" };
+      return { text: t("activity.memberInvited", { who, email: str(m.email) ?? t("activity.aNewMember") }), kind: "org" };
     case "org.invitation_revoked":
-      return { text: `${who} revoked the invitation for ${str(m.email) ?? "a user"}.`, kind: "org" };
+      return { text: t("activity.invitationRevoked", { who, email: str(m.email) ?? t("activity.aUser") }), kind: "org" };
     case "org.invitation_accepted":
-      return { text: `${who} joined the organization.`, kind: "org" };
+      return { text: t("activity.invitationAccepted", { who }), kind: "org" };
     case "org.member_role_changed":
-      return { text: `${who} changed ${str(m.memberName) ?? "a member"}'s role to ${str(m.to) ?? "a new role"}.`, kind: "org" };
+      return { text: t("activity.roleChanged", { who, member, role: role ? t(`enum.role.${role}`) : (str(m.to) ?? t("activity.aNewRole")) }), kind: "org" };
     case "org.member_deactivated":
-      return { text: `${who} deactivated ${str(m.memberName) ?? "a member"}'s access.`, kind: "org" };
+      return { text: t("activity.memberDeactivated", { who, member }), kind: "org" };
     case "org.member_reactivated":
-      return { text: `${who} reactivated ${str(m.memberName) ?? "a member"}'s access.`, kind: "org" };
+      return { text: t("activity.memberReactivated", { who, member }), kind: "org" };
     case "org.renamed":
-      return { text: `${who} renamed the organization to “${str(m.to) ?? "a new name"}”.`, kind: "org" };
+      return { text: t("activity.orgRenamed", { who, name: str(m.to) ?? t("activity.aNewName") }), kind: "org" };
+    case "org.locale_changed":
+      return { text: t("activity.orgLanguage", { who, language: str(m.toName) ?? str(m.to) ?? "" }), kind: "org" };
     case "account.password_changed":
-      return { text: `${who} changed their password.`, kind: "auth" };
+      return { text: t("activity.passwordChanged", { who }), kind: "auth" };
     case "account.password_reset":
-      return { text: `${who} reset their password with an email link.`, kind: "auth" };
+      return { text: t("activity.passwordReset", { who }), kind: "auth" };
     case "account.profile_updated":
-      return { text: `${who} updated their profile.`, kind: "auth" };
+      return { text: t("activity.profileUpdated", { who }), kind: "auth" };
     case "case.created":
-      return { text: `${who} opened case room${quoted}.`, kind: "case" };
+      return { text: t("activity.caseCreated", { who, quoted }), kind: "case" };
     case "case.status_changed":
-      return { text: `${who} changed the case status to ${String(m.to ?? "").replace(/_/g, " ").toLowerCase()}.`, kind: "case" };
+      return { text: t("activity.caseStatus", { who, status: caseStatus ? lower(t(`enum.caseStatus.${caseStatus}`)) : String(m.to ?? "") }), kind: "case" };
     case "case.member_added":
-      return { text: `${who} added ${shortName(str(m.memberName))} to the care team.`, kind: "case" };
+      return { text: t("activity.caseMemberAdded", { who, member: str(m.memberName) ? shortName(str(m.memberName)) : t("activity.aMember") }), kind: "case" };
     case "document.uploaded":
-      return { text: `${who} uploaded ${article(docLabel)} ${docLabel}${quoted}.`, kind: "document" };
+      return { text: t("activity.documentUploaded", { who, document, quoted }), kind: "document" };
     case "ai.document_processed":
-      return { text: `AI updated the timeline and shared memory from${quoted || " a document"}.`, kind: "ai" };
+      return { text: t("activity.documentProcessed", { quoted: quotedOr("activity.aDocument") }), kind: "ai" };
     case "ai.document_failed":
-      return { text: `AI could not process${quoted || " a document"}.`, kind: "ai" };
+      return { text: t("activity.documentFailed", { quoted: quotedOr("activity.aDocument") }), kind: "ai" };
     case "timeline.event_added":
-      return { text: `${who} added a timeline event${quoted}.`, kind: "case" };
+      return { text: t("activity.timelineEventAdded", { who, quoted }), kind: "case" };
     case "ai.timeline_generated":
-      return { text: `AI generated an updated timeline (${String(m.events ?? "")} events).`, kind: "ai" };
+      return { text: t("activity.timelineGenerated", { count: String(m.events ?? "") }), kind: "ai" };
     case "message.posted":
-      return { text: `${who} posted in the discussion.`, kind: "message" };
+      return { text: t("activity.messagePosted", { who }), kind: "message" };
     case "ai.question_asked":
-      return { text: `${who} asked the AI${str(m.question) ? `: “${String(m.question).slice(0, 90)}”` : "."}`, kind: "ai" };
+      return {
+        text: str(m.question) ? t("activity.questionAsked", { who, question: String(m.question).slice(0, 90) }) : t("activity.questionAskedNoText", { who }),
+        kind: "ai",
+      };
     case "ai.answer_generated":
-      return { text: `AI answered ${who}'s question with ${String(m.sources ?? 0)} source${m.sources === 1 ? "" : "s"}.`, kind: "ai" };
+      return { text: t.plural("activity.answerGenerated", typeof m.sources === "number" ? m.sources : 0, { who }), kind: "ai" };
     case "ai.answer_failed":
-      return { text: `AI could not answer ${who}'s question.`, kind: "ai" };
+      return { text: t("activity.answerFailed", { who }), kind: "ai" };
     case "ai.summary_generated":
-      return { text: `AI generated an updated case summary for ${who}.`, kind: "ai" };
+      return { text: t("activity.summaryGenerated", { who }), kind: "ai" };
     case "summary.reviewed":
-      return { text: `${who} reviewed the AI case summary.`, kind: "brief" };
+      return { text: t("activity.summaryReviewed", { who }), kind: "brief" };
     case "tumor_board.generated":
-      return { text: `AI prepared a tumor board brief for ${who}.`, kind: "ai" };
+      return { text: t("activity.tumorBoardGenerated", { who }), kind: "ai" };
     case "handoff.generated":
-      return { text: `AI drafted a patient handoff for ${who}.`, kind: "ai" };
+      return { text: t("activity.handoffGenerated", { who }), kind: "ai" };
     case "brief.edited":
-      return { text: `${who} edited${quoted || " a brief"}.`, kind: "brief" };
+      return { text: t("activity.briefEdited", { who, quoted: quotedOr("activity.aBrief") }), kind: "brief" };
     case "brief.approved":
-      return { text: `${who} approved${quoted || " a brief"}.`, kind: "brief" };
+      return { text: t("activity.briefApproved", { who, quoted: quotedOr("activity.aBrief") }), kind: "brief" };
     case "decision.proposed":
-      return { text: `${who} proposed ${decision}${title ? `: ${title}` : ""}.`, kind: "decision" };
+      return { text: t("activity.decisionProposed", { who, decision, detail: title ? `: ${title}` : "" }), kind: "decision" };
     case "decision.revised":
-      return { text: `${who} revised ${decision}.`, kind: "decision" };
+      return { text: t("activity.decisionRevised", { who, decision }), kind: "decision" };
     case "decision.approved":
-      return { text: `${who} approved ${decision}${title ? ` (${title})` : ""}.`, kind: "decision" };
+      return { text: t("activity.decisionApproved", { who, decision, detail: title ? ` (${title})` : "" }), kind: "decision" };
     case "decision.rejected":
-      return { text: `${who} rejected ${decision}.`, kind: "decision" };
+      return { text: t("activity.decisionRejected", { who, decision }), kind: "decision" };
     case "decision.changes_requested":
-      return { text: `${who} requested changes to ${decision}.`, kind: "decision" };
+      return { text: t("activity.decisionChangesRequested", { who, decision }), kind: "decision" };
     case "decision.finalized":
-      return { text: `${decision} was recorded as the final human-approved decision.`, kind: "decision" };
+      return { text: t("activity.decisionFinalized", { decision }), kind: "decision" };
     case "ai.tasks_suggested":
-      return { text: `AI suggested follow-up tasks for ${decision}.`, kind: "ai" };
+      return { text: t("activity.tasksSuggested", { decision }), kind: "ai" };
     case "task.created":
-      return { text: `${who} created task${quoted}${m.aiSuggested ? " (AI-suggested)" : ""}.`, kind: "task" };
+      return { text: t("activity.taskCreated", { who, quoted, suggested: m.aiSuggested ? ` ${t("activity.aiSuggestedSuffix")}` : "" }), kind: "task" };
     case "task.status_changed":
-      return { text: `${who} moved task${quoted} to ${String(m.to ?? "").replace(/_/g, " ").toLowerCase()}.`, kind: "task" };
+      return { text: t("activity.taskStatus", { who, quoted, status: taskStatus ? lower(t(`enum.taskStatus.${taskStatus}`)) : String(m.to ?? "") }), kind: "task" };
     case "task.completed":
-      return { text: `${who} completed task${quoted}.`, kind: "task" };
+      return { text: t("activity.taskCompleted", { who, quoted }), kind: "task" };
     default:
-      return { text: `${who}: ${event.action}`, kind: event.actorType === "AI" ? "ai" : "case" };
+      return { text: t("activity.fallback", { who, action: event.action }), kind: event.actorType === "AI" ? "ai" : "case" };
   }
 }

@@ -12,6 +12,9 @@ import { LocalDateTime, TimeAgo } from "@/components/shared/misc";
 import { SourceList } from "@/components/shared/sources";
 import { UserAvatar } from "@/components/shared/user-avatar";
 import { TaskStatusToggle } from "@/components/tasks/task-status-toggle";
+import { rich } from "@/i18n/rich";
+import { getI18n } from "@/i18n/server";
+import { lowerLabel } from "@/i18n/translator-for";
 import { shortName } from "@/lib/activity";
 import type { UserSummary } from "@/lib/dto";
 import { loadCasePage } from "@/server/case-page";
@@ -41,19 +44,20 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
   const memberList: UserSummary[] = members.map((m) => m.user);
   const documentOptions = documents.map((d) => ({ id: d.id, title: d.title, type: d.type, date: toIsoDate(d.documentDate) }));
   const canReview = can(user, "decision.review");
+  const { t } = await getI18n();
 
   return (
     <div className="mx-auto max-w-4xl space-y-5 px-6 py-6 lg:px-8">
       <div className="flex items-start justify-between gap-4">
         <div className="min-w-0">
-          <h2 className="text-base font-semibold">Decisions</h2>
-          <p className="text-[13px] text-muted-foreground">Proposed by clinicians, reviewed by the care team. A decision is final only when every requested reviewer approves.</p>
+          <h2 className="text-base font-semibold">{t("caseTab.decisions")}</h2>
+          <p className="text-[13px] text-muted-foreground">{t("decisions.intro")}</p>
         </div>
         <NewDecisionButton />
       </div>
 
       {decisions.length === 0 && (
-        <EmptyState icon={ScaleIcon} title="No decisions yet" description="Propose a decision from the header, or directly from a message in the discussion." />
+        <EmptyState icon={ScaleIcon} title={t("decisions.empty.title")} description={t("decisions.empty.text")} />
       )}
 
       {decisions.map((decision) => {
@@ -82,7 +86,7 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
             {decision.status === "APPROVED" && decision.finalizedAt && (
               <div className="flex items-center gap-2 border-b border-approved-border bg-approved-soft px-5 py-2 text-[12.5px] font-medium text-approved">
                 <ShieldCheckIcon className="size-4" />
-                Final human-approved decision · recorded <LocalDateTime date={decision.finalizedAt} /> after approval by all {decision.approvals.length} reviewers
+                {rich(t("decisions.finalBanner", { count: decision.approvals.length }), { time: <LocalDateTime date={decision.finalizedAt} /> })}
               </div>
             )}
             <div className="space-y-5 px-5 py-4">
@@ -90,15 +94,20 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
                 <div className="min-w-0 space-y-1">
                   <div className="flex flex-wrap items-center gap-2">
                     <span className="text-xs font-semibold tracking-wide text-muted-foreground uppercase">
-                      {decision.status === "APPROVED" ? "Decision" : "Proposed decision"} #{decision.number}
+                      {decision.status === "APPROVED" ? t("decision.number", { number: decision.number }) : t("decisions.proposedNumber", { number: decision.number })}
                     </span>
                     <DecisionStatusBadge status={decision.status} />
                   </div>
                   <h3 className="text-[17px] leading-snug font-semibold tracking-tight">{decision.title}</h3>
                   <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
                     <UserAvatar user={decision.createdBy} size="xs" />
-                    Proposed by {decision.createdBy.name}
-                    {decision.createdBy.specialty ? ` (${decision.createdBy.specialty})` : ""} · <TimeAgo date={decision.createdAt} />
+                    {rich(
+                      t("decisions.proposedBy", {
+                        name: decision.createdBy.name,
+                        specialty: decision.createdBy.specialty ? ` (${decision.createdBy.specialty})` : "",
+                      }),
+                      { time: <TimeAgo date={decision.createdAt} /> },
+                    )}
                   </div>
                 </div>
                 {isProposer && !final && (
@@ -122,21 +131,22 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
 
               <p className="text-[13.5px] leading-relaxed text-foreground/90">{decision.description}</p>
 
-              <Section title="Rationale">
+              <Section title={t("decisions.rationale")}>
                 <div className="rounded-lg border bg-background/60 px-3.5 py-2.5 text-[13px] leading-relaxed whitespace-pre-line">{decision.rationale}</div>
               </Section>
 
-              {sources.length > 0 && <SourceList caseId={caseId} sources={sources} label="Sources" />}
+              {sources.length > 0 && <SourceList caseId={caseId} sources={sources} />}
 
               {decision.sourceMessage && (
                 <Link href={`/cases/${caseId}/discussion#message-${decision.sourceMessage.id}`} className="inline-flex items-center gap-1.5 text-xs text-muted-foreground hover:text-primary hover:underline">
                   <MessageSquareIcon className="size-3.5" />
-                  Created from discussion: “{decision.sourceMessage.content.slice(0, 90)}
-                  {decision.sourceMessage.content.length > 90 ? "…" : ""}”
+                  {t("decisions.fromDiscussion", {
+                    excerpt: `${decision.sourceMessage.content.slice(0, 90)}${decision.sourceMessage.content.length > 90 ? "…" : ""}`,
+                  })}
                 </Link>
               )}
 
-              <Section title={`Approvals · ${approvedCount} of ${decision.approvals.length}`}>
+              <Section title={t("decisions.approvals", { approved: approvedCount, total: decision.approvals.length })}>
                 <div className="mb-2 h-1.5 overflow-hidden rounded-full bg-muted">
                   <div className="h-full rounded-full bg-approved transition-all" style={{ width: `${(approvedCount / Math.max(1, decision.approvals.length)) * 100}%` }} />
                 </div>
@@ -148,7 +158,7 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
                         <div className="flex flex-wrap items-center gap-x-2 gap-y-1">
                           <span className="text-[13px] font-medium">{approval.user.name}</span>
                           <span className="text-xs text-muted-foreground">{approval.user.specialty}</span>
-                          {approval.user.id === user.id && <span className="text-xs font-medium text-primary">(you)</span>}
+                          {approval.user.id === user.id && <span className="text-xs font-medium text-primary">{t("rail.you")}</span>}
                         </div>
                         {approval.comment && <p className="mt-1 text-[12.5px] leading-relaxed text-foreground/85">“{approval.comment}”</p>}
                       </div>
@@ -169,16 +179,18 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
                 <div className="flex flex-wrap items-center justify-between gap-3 rounded-lg border border-amber-200 bg-amber-50/70 px-3.5 py-3">
                   <div className="text-[13px]">
                     <div className="font-medium text-amber-900">
-                      {myApproval.status === "PENDING" ? "Your review is requested" : `You responded: ${myApproval.status.replace("_", " ").toLowerCase()}. You can update your review.`}
+                      {myApproval.status === "PENDING"
+                        ? t("decisions.reviewRequested")
+                        : t("decisions.youResponded", { status: lowerLabel(t(`enum.approvalStatus.${myApproval.status}`)) })}
                     </div>
-                    <div className="text-xs text-amber-800/80">Only human reviewers can approve. The AI cannot approve or reject decisions.</div>
+                    <div className="text-xs text-amber-800/80">{t("decisions.humanOnly")}</div>
                   </div>
                   <ReviewActions caseId={caseId} decisionId={decision.id} number={decision.number} revision={decision.revision} />
                 </div>
               )}
 
               {decision.status === "APPROVED" && (
-                <Section title="Follow-up tasks">
+                <Section title={t("decisions.followUps")}>
                   <div className="space-y-2">
                     {decision.tasks.length > 0 && (
                       <ul className="space-y-1">
@@ -195,7 +207,7 @@ export default async function DecisionsPage({ params }: { params: Promise<{ case
                       <div className="flex items-center gap-2">
                         <FollowUpTasks caseId={caseId} decisionId={decision.id} number={decision.number} members={memberList} />
                         <Link href={`/cases/${caseId}/tasks`} className="inline-flex items-center gap-1 text-xs font-medium text-primary hover:underline">
-                          <CheckSquareIcon className="size-3.5" /> All case tasks
+                          <CheckSquareIcon className="size-3.5" /> {t("decisions.allCaseTasks")}
                         </Link>
                       </div>
                     )}

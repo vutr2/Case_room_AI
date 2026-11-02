@@ -5,6 +5,7 @@ import { headers } from "next/headers";
 import { after } from "next/server";
 import { signIn, signOut } from "@/auth";
 import { safePath } from "@/lib/safe-path";
+import { getLocale, localizeFormState } from "@/i18n/server";
 import { consumeAccountCreation, consumeEmailRequest, consumeLinkCompletion, signInBlockedMessage } from "../auth/limits";
 import { BUSY_MESSAGE, isRetryableDatabaseError } from "../db-errors";
 import { AppError } from "../errors";
@@ -42,7 +43,7 @@ function newPassword(formData: FormData): { password: string; error: string | nu
   return { password, error: password === confirm ? null : "The two passwords do not match." };
 }
 
-export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
+async function loginActionUnlocalized(_prev: FormState, formData: FormData): Promise<FormState> {
   const email = String(formData.get("email") ?? "");
   const requestHeaders = await headers();
   const blocked = signInBlockedMessage(email, requestHeaders);
@@ -65,7 +66,7 @@ export async function logoutAction(redirectTo?: string) {
 }
 
 /** Public signup, step 1: email a confirmation link (nothing is created yet). */
-export async function signupAction(_prev: EmailFormState, formData: FormData): Promise<EmailFormState> {
+async function signupActionUnlocalized(_prev: EmailFormState, formData: FormData): Promise<EmailFormState> {
   const email = String(formData.get("email") ?? "");
   const limited = consumeEmailRequest("signup", email, await headers());
   if (limited) return { error: limited, sent: false };
@@ -75,8 +76,9 @@ export async function signupAction(_prev: EmailFormState, formData: FormData): P
       name: String(formData.get("name") ?? ""),
       email,
     });
+    const locale = await getLocale();
     // After the response: the answer must not reveal (by content or timing) whether the address has an account.
-    after(() => deliverSignupRequest(input));
+    after(() => deliverSignupRequest(input, locale));
     return { error: null, sent: true };
   } catch (error) {
     const known = formError(error);
@@ -86,7 +88,7 @@ export async function signupAction(_prev: EmailFormState, formData: FormData): P
 }
 
 /** Public signup, step 2: the confirmation link was opened; create the account and sign in. */
-export async function completeSignupAction(_prev: FormState, formData: FormData): Promise<FormState> {
+async function completeSignupActionUnlocalized(_prev: FormState, formData: FormData): Promise<FormState> {
   const { password, error: mismatch } = newPassword(formData);
   if (mismatch) return { error: mismatch };
   const requestHeaders = await headers();
@@ -103,7 +105,7 @@ export async function completeSignupAction(_prev: FormState, formData: FormData)
   }
 }
 
-export async function acceptInviteAction(_prev: FormState, formData: FormData): Promise<FormState> {
+async function acceptInviteActionUnlocalized(_prev: FormState, formData: FormData): Promise<FormState> {
   const { password, error: mismatch } = newPassword(formData);
   if (mismatch) return { error: mismatch };
   const limited = consumeAccountCreation("invite", await headers());
@@ -124,14 +126,15 @@ export async function acceptInviteAction(_prev: FormState, formData: FormData): 
 }
 
 /** "Forgot password": the answer is the same whether or not the address has an account. */
-export async function forgotPasswordAction(_prev: EmailFormState, formData: FormData): Promise<EmailFormState> {
+async function forgotPasswordActionUnlocalized(_prev: EmailFormState, formData: FormData): Promise<EmailFormState> {
   const email = String(formData.get("email") ?? "");
   const limited = consumeEmailRequest("password-reset", email, await headers());
   if (limited) return { error: limited, sent: false };
   try {
     const request = parsePasswordResetRequest({ email });
+    const locale = await getLocale();
     // After the response: the answer must not reveal (by content or timing) whether the address has an account.
-    after(() => deliverPasswordReset(request.email));
+    after(() => deliverPasswordReset(request.email, locale));
     return { error: null, sent: true };
   } catch (error) {
     const known = formError(error);
@@ -141,13 +144,13 @@ export async function forgotPasswordAction(_prev: EmailFormState, formData: Form
 }
 
 /** Set a new password from an emailed link, then sign in with it. */
-export async function resetPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
+async function resetPasswordActionUnlocalized(_prev: FormState, formData: FormData): Promise<FormState> {
   const { password, error: mismatch } = newPassword(formData);
   if (mismatch) return { error: mismatch };
   const limited = consumeLinkCompletion(await headers());
   if (limited) return { error: limited };
   try {
-    const identity = await resetPassword({ token: String(formData.get("token") ?? ""), password });
+    const identity = await resetPassword({ token: String(formData.get("token") ?? ""), password }, await getLocale());
     await signIn("credentials", { email: identity.email, password, redirectTo: "/dashboard" });
     return { error: null };
   } catch (error) {
@@ -156,4 +159,29 @@ export async function resetPasswordAction(_prev: FormState, formData: FormData):
     if (error instanceof AuthError) return { error: "Your password was changed. Sign in with the new password." };
     throw error;
   }
+}
+
+// The forms show these errors: in the reader's language (services write English).
+export async function loginAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return localizeFormState(await loginActionUnlocalized(_prev, formData));
+}
+
+export async function signupAction(_prev: EmailFormState, formData: FormData): Promise<EmailFormState> {
+  return localizeFormState(await signupActionUnlocalized(_prev, formData));
+}
+
+export async function completeSignupAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return localizeFormState(await completeSignupActionUnlocalized(_prev, formData));
+}
+
+export async function acceptInviteAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return localizeFormState(await acceptInviteActionUnlocalized(_prev, formData));
+}
+
+export async function forgotPasswordAction(_prev: EmailFormState, formData: FormData): Promise<EmailFormState> {
+  return localizeFormState(await forgotPasswordActionUnlocalized(_prev, formData));
+}
+
+export async function resetPasswordAction(_prev: FormState, formData: FormData): Promise<FormState> {
+  return localizeFormState(await resetPasswordActionUnlocalized(_prev, formData));
 }

@@ -73,4 +73,21 @@ describe("email templates", () => {
     expect(email.text).toMatch(/expires in 60 minutes/);
     expect(email.text).toContain("https://case-room.test/reset-password/t");
   });
+
+  it("writes the email in the requested language", () => {
+    const email = invitationEmail({
+      to: "dongnghiep@benhvien.test",
+      organizationName: "Bệnh viện Demo",
+      inviterName: "BS. Lan",
+      roleLabel: "Bác sĩ chuyên khoa",
+      url: "https://case-room.test/invite/token-456",
+      expiresAt: new Date("2026-10-23T00:00:00Z"),
+      locale: "vi",
+    });
+    expect(email.subject).toBe("BS. Lan đã mời bạn tham gia Bệnh viện Demo trên Clinical Case Room");
+    expect(email.text).toContain("với vai trò Bác sĩ chuyên khoa");
+    expect(email.text).toContain("2026-10-23");
+    expect(email.html).toContain('lang="vi"');
+    expect(passwordResetEmail({ to: "a@b.test", name: "Test", url: "https://case-room.test/r", expiresInMinutes: 60, locale: "vi" }).text).toContain("hết hạn sau 60 phút");
+  });
 });

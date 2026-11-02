@@ -211,6 +211,8 @@ function byDateThenTitle(a: { date: string; title: string }, b: { date: string; 
 /** Normalize text for verbatim-quote comparison. */
 export function normalizeForMatch(text: string): string {
   return text
+    // Vietnamese diacritics can be stored precomposed (NFC) or decomposed (NFD).
+    .normalize("NFC")
     .toLowerCase()
     .replace(/[‘’‛]/g, "'")
     .replace(/[“”]/g, '"')

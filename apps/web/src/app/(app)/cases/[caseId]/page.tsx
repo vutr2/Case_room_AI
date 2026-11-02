@@ -8,7 +8,9 @@ import { SummaryCard } from "@/components/overview/summary-card";
 import { DecisionStatusBadge } from "@/components/shared/badges";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TaskRow } from "@/components/tasks/task-row";
+import { getI18n } from "@/i18n/server";
 import { shortName } from "@/lib/activity";
+import { aiProviderLabel } from "@/lib/ai-provider";
 import { loadCasePage } from "@/server/case-page";
 import { can } from "@/server/authz/permissions";
 import { getLatestSummary } from "@/server/services/briefs";
@@ -34,6 +36,7 @@ export default async function CaseOverviewPage({ params }: { params: Promise<{ c
   ]);
   const memory = memoryRow ? parseCaseMemory(memoryRow.data) : null;
   const canGenerate = can(user, "brief.generate");
+  const { t } = await getI18n();
 
   return (
     <div className="mx-auto max-w-5xl space-y-6 px-6 py-6 lg:px-8">
@@ -48,7 +51,7 @@ export default async function CaseOverviewPage({ params }: { params: Promise<{ c
           requestedBy={summary.requestedBy ? shortName(summary.requestedBy.name) : null}
           approvedBy={summary.approvedBy ? shortName(summary.approvedBy.name) : null}
           approvedAt={summary.approvedAt}
-          provider={summary.aiProvider === "demo" ? "the offline demo engine" : summary.aiProvider === "demo-seed" ? "the demo seed" : summary.aiProvider}
+          provider={aiProviderLabel(summary.aiProvider, t)}
           model={summary.aiModel === "seed" ? null : summary.aiModel}
           canGenerate={canGenerate}
           canApprove={can(user, "brief.approve")}
@@ -56,12 +59,8 @@ export default async function CaseOverviewPage({ params }: { params: Promise<{ c
       ) : (
         <EmptyState
           icon={SparklesIcon}
-          title="No AI case summary yet"
-          description={
-            documentCount === 0
-              ? "Upload clinical documents first. The AI summarizes only what is in the case record, with sources."
-              : `The AI will summarize ${documentCount} documents, the timeline, decisions and discussion, and flag missing information.`
-          }
+          title={t("overview.noSummary")}
+          description={documentCount === 0 ? t("overview.uploadFirst") : t.plural("overview.willSummarize", documentCount)}
           action={canGenerate && documentCount > 0 ? <GenerateSummaryButton caseId={caseId} /> : undefined}
         />
       )}
@@ -70,20 +69,20 @@ export default async function CaseOverviewPage({ params }: { params: Promise<{ c
         <section className="rounded-xl border bg-card">
           <header className="flex items-center justify-between border-b px-4 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <ScaleIcon className="size-4 text-amber-600" /> Pending decisions
+              <ScaleIcon className="size-4 text-amber-600" /> {t("overview.pendingDecisions")}
             </h2>
             <Link href={`/cases/${caseId}/decisions`} className="text-xs font-medium text-primary hover:underline">
-              Open decisions
+              {t("overview.openDecisions")}
             </Link>
           </header>
           <div className="space-y-2 p-3">
-            {decisions.length === 0 && <p className="px-1 py-4 text-center text-[13px] text-muted-foreground">No decisions awaiting review.</p>}
+            {decisions.length === 0 && <p className="px-1 py-4 text-center text-[13px] text-muted-foreground">{t("overview.noDecisions")}</p>}
             {decisions.map((decision) => {
               const approved = decision.approvals.filter((a) => a.status === "APPROVED").length;
               return (
                 <Link key={decision.id} href={`/cases/${caseId}/decisions#decision-${decision.id}`} className="block rounded-lg border px-3 py-2.5 hover:bg-accent">
                   <div className="flex items-center justify-between gap-2">
-                    <span className="text-xs font-semibold text-muted-foreground">Decision #{decision.number}</span>
+                    <span className="text-xs font-semibold text-muted-foreground">{t("overview.decisionNumber", { number: decision.number })}</span>
                     <DecisionStatusBadge status={decision.status} />
                   </div>
                   <div className="mt-1 text-[13px] font-medium">{decision.title}</div>
@@ -92,7 +91,7 @@ export default async function CaseOverviewPage({ params }: { params: Promise<{ c
                       <div className="h-full rounded-full bg-approved" style={{ width: `${(approved / Math.max(1, decision.approvals.length)) * 100}%` }} />
                     </div>
                     <span className="text-[11px] text-muted-foreground tabular-nums">
-                      {approved}/{decision.approvals.length} approved
+                      {t("overview.approvedCount", { approved, total: decision.approvals.length })}
                     </span>
                   </div>
                 </Link>
@@ -104,14 +103,14 @@ export default async function CaseOverviewPage({ params }: { params: Promise<{ c
         <section className="rounded-xl border bg-card">
           <header className="flex items-center justify-between border-b px-4 py-3">
             <h2 className="flex items-center gap-2 text-sm font-semibold">
-              <CheckSquareIcon className="size-4 text-emerald-600" /> Pending tasks
+              <CheckSquareIcon className="size-4 text-emerald-600" /> {t("overview.pendingTasks")}
             </h2>
             <Link href={`/cases/${caseId}/tasks`} className="text-xs font-medium text-primary hover:underline">
-              Open tasks
+              {t("overview.openTasks")}
             </Link>
           </header>
           <div className="p-2">
-            {tasks.length === 0 && <p className="px-1 py-4 text-center text-[13px] text-muted-foreground">No open tasks.</p>}
+            {tasks.length === 0 && <p className="px-1 py-4 text-center text-[13px] text-muted-foreground">{t("overview.noTasks")}</p>}
             {tasks.map((task) => (
               <TaskRow key={task.id} task={task} showCase={false} canManage={can(user, "task.manage")} />
             ))}

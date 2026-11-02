@@ -1,3 +1,5 @@
+"use client";
+
 import { Badge } from "@ccr/ui/components/badge";
 import { cn } from "@ccr/ui/lib/utils";
 import type {
@@ -8,14 +10,6 @@ import type {
   ProcessingStatus,
   TaskPriority,
   TaskStatus,
-} from "@ccr/types";
-import {
-  APPROVAL_STATUS_LABELS,
-  CASE_STATUS_LABELS,
-  DECISION_STATUS_LABELS,
-  DOCUMENT_TYPE_LABELS,
-  TASK_PRIORITY_LABELS,
-  TASK_STATUS_LABELS,
 } from "@ccr/types";
 import {
   AlertTriangleIcon,
@@ -31,41 +25,46 @@ import {
   SparklesIcon,
   XCircleIcon,
 } from "lucide-react";
+import { useI18n } from "@/i18n/client";
 
 /* ─────────────── AI vs human labels (safety design) ─────────────── */
 
-export function AIGeneratedBadge({ className, label = "AI Generated" }: { className?: string; label?: string }) {
+export function AIGeneratedBadge({ className, label }: { className?: string; label?: string }) {
+  const { t } = useI18n();
   return (
     <Badge variant="ai" className={className}>
       <SparklesIcon />
-      {label}
+      {label ?? t("badge.aiGenerated")}
     </Badge>
   );
 }
 
 export function DraftBadge({ className }: { className?: string }) {
+  const { t } = useI18n();
   return (
     <Badge variant="draft" className={className}>
       <CircleDashedIcon />
-      Draft
+      {t("badge.draft")}
     </Badge>
   );
 }
 
-export function HumanApprovedBadge({ className, label = "Human Approved" }: { className?: string; label?: string }) {
+export function HumanApprovedBadge({ className, label }: { className?: string; label?: string }) {
+  const { t } = useI18n();
   return (
     <Badge variant="approved" className={className}>
       <ShieldCheckIcon />
-      {label}
+      {label ?? t("badge.humanApproved")}
     </Badge>
   );
 }
 
 export function SyntheticPatientBadge({ className, compact = false }: { className?: string; compact?: boolean }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={cn("border-dashed font-semibold tracking-wide text-muted-foreground uppercase", className)}>
       <FlaskConicalIcon />
-      {compact ? "Synthetic" : "Demo / Synthetic patient"}
+      {compact ? t("badge.synthetic") : t("badge.syntheticPatient")}
     </Badge>
   );
 }
@@ -80,27 +79,30 @@ const CASE_STATUS_STYLE: Record<CaseStatus, string> = {
 };
 
 export function CaseStatusBadge({ status, className }: { status: CaseStatus; className?: string }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={cn(CASE_STATUS_STYLE[status], className)}>
       <CircleDotIcon />
-      {CASE_STATUS_LABELS[status]}
+      {t(`enum.caseStatus.${status}`)}
     </Badge>
   );
 }
 
 export function DecisionStatusBadge({ status, className }: { status: DecisionStatus; className?: string }) {
+  const { t } = useI18n();
   if (status === "APPROVED") return <HumanApprovedBadge className={className} />;
   const variant = status === "REJECTED" ? "danger" : status === "UNDER_REVIEW" ? "default" : "draft";
   const Icon = status === "REJECTED" ? XCircleIcon : status === "UNDER_REVIEW" ? ClockIcon : CircleDashedIcon;
   return (
     <Badge variant={variant} className={className}>
       <Icon />
-      {DECISION_STATUS_LABELS[status]}
+      {t(`enum.decisionStatus.${status}`)}
     </Badge>
   );
 }
 
 export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
+  const { t } = useI18n();
   const config = {
     PENDING: { variant: "muted", Icon: ClockIcon },
     APPROVED: { variant: "approved", Icon: CheckCircle2Icon },
@@ -111,7 +113,7 @@ export function ApprovalStatusBadge({ status }: { status: ApprovalStatus }) {
   return (
     <Badge variant={variant}>
       <Icon />
-      {APPROVAL_STATUS_LABELS[status]}
+      {t(`enum.approvalStatus.${status}`)}
     </Badge>
   );
 }
@@ -124,17 +126,19 @@ const PRIORITY_STYLE: Record<TaskPriority, string> = {
 };
 
 export function TaskPriorityBadge({ priority, className }: { priority: TaskPriority; className?: string }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={cn(PRIORITY_STYLE[priority], className)}>
       {priority === "URGENT" && <AlertTriangleIcon />}
-      {TASK_PRIORITY_LABELS[priority]}
+      {t(`enum.taskPriority.${priority}`)}
     </Badge>
   );
 }
 
 export function TaskStatusBadge({ status }: { status: TaskStatus }) {
+  const { t } = useI18n();
   const variant = status === "DONE" ? "approved" : status === "IN_PROGRESS" ? "default" : "muted";
-  return <Badge variant={variant}>{TASK_STATUS_LABELS[status]}</Badge>;
+  return <Badge variant={variant}>{t(`enum.taskStatus.${status}`)}</Badge>;
 }
 
 const DOC_STYLE: Record<DocumentType, string> = {
@@ -147,19 +151,21 @@ const DOC_STYLE: Record<DocumentType, string> = {
 };
 
 export function DocumentTypeBadge({ type, className }: { type: DocumentType; className?: string }) {
+  const { t } = useI18n();
   return (
     <Badge variant="outline" className={cn("border-transparent", DOC_STYLE[type], className)}>
-      {DOCUMENT_TYPE_LABELS[type]}
+      {t(`enum.documentType.${type}`)}
     </Badge>
   );
 }
 
 export function ProcessingBadge({ status }: { status: ProcessingStatus }) {
+  const { t } = useI18n();
   if (status === "COMPLETED") {
     return (
       <Badge variant="ai">
         <BadgeCheckIcon />
-        AI processed
+        {t("badge.aiProcessed")}
       </Badge>
     );
   }
@@ -167,14 +173,14 @@ export function ProcessingBadge({ status }: { status: ProcessingStatus }) {
     return (
       <Badge variant="danger">
         <XCircleIcon />
-        AI processing failed
+        {t("badge.aiFailed")}
       </Badge>
     );
   }
   return (
     <Badge variant="ai">
       <LoaderIcon className="animate-spin" />
-      {status === "PENDING" ? "Queued for AI" : "AI processing"}
+      {status === "PENDING" ? t("badge.aiQueued") : t("badge.aiProcessing")}
     </Badge>
   );
 }

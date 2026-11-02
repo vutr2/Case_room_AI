@@ -5,6 +5,7 @@ import { CaseHeader } from "@/components/case/case-header";
 import { CaseTabs } from "@/components/case/case-tabs";
 import { CaseRealtimeProvider } from "@/components/case/realtime-provider";
 import { CaseRightRail } from "@/components/case/right-rail";
+import { getI18n } from "@/i18n/server";
 import { shortName } from "@/lib/activity";
 import { ageFromDob } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
@@ -18,7 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ caseId: s
   const user = await requireUser();
   // Same membership check as the page: metadata is rendered even when the page itself is a 404.
   const room = await findAccessibleCase(user, caseId);
-  return { title: room ? `${room.patient.firstName} ${room.patient.lastName}` : "Case" };
+  const { t } = await getI18n();
+  return { title: room ? `${room.patient.firstName} ${room.patient.lastName}` : t("case.fallbackTitle") };
 }
 
 export default async function CaseLayout({ children, params }: { children: React.ReactNode; params: Promise<{ caseId: string }> }) {

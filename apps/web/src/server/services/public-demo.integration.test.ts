@@ -3,7 +3,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { createCareTeam, resetDatabase } from "@/test/integration/fixtures";
 import { PUBLIC_DEMO_REFUSAL } from "../demo-mode";
 import { ForbiddenError } from "../errors";
-import { changePassword, renameOrganization, updateProfile } from "./accounts";
+import { changePassword, renameOrganization, updateOrganizationLocale, updateProfile } from "./accounts";
 import { createAdditionalOrganization } from "./organizations";
 import { createTask } from "./tasks";
 import {
@@ -34,7 +34,7 @@ afterEach(() => {
 /** What a visitor could change to break the shared demo accounts for everyone else. */
 async function snapshot() {
   const [organizations, members, identities, invitations] = await Promise.all([
-    prisma.organization.findMany({ select: { id: true, name: true }, orderBy: { id: "asc" } }),
+    prisma.organization.findMany({ select: { id: true, name: true, locale: true }, orderBy: { id: "asc" } }),
     prisma.user.findMany({ select: { id: true, name: true, title: true, role: true, deactivatedAt: true }, orderBy: { id: "asc" } }),
     prisma.identity.findMany({ select: { id: true, name: true, passwordHash: true, sessionVersion: true }, orderBy: { id: "asc" } }),
     prisma.invitation.count(),
@@ -52,6 +52,7 @@ describe("public demo mode (PUBLIC_DEMO=true)", () => {
       ["change password", () => changePassword(proposer, { currentPassword: "demo1234", newPassword: "Vandal-Password-123" })],
       ["update profile", () => updateProfile(proposer, { organizationId: organization.id, name: "Vandal", title: "", specialty: "" })],
       ["rename organization", () => renameOrganization(adminA, { organizationId: organization.id, name: "Vandalized Hospital" })],
+      ["change organization language", () => updateOrganizationLocale(adminA, { organizationId: organization.id, locale: "vi" })],
       ["create organization", () => createAdditionalOrganization(proposer, { name: "Vandal Clinic" })],
       ["invite member", () => inviteMember(adminA, { organizationId: organization.id, email: "stranger@example.test", role: "ORG_ADMIN" })],
       ["resend invitation", () => resendInvitation(adminA, "any-invitation")],

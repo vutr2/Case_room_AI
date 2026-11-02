@@ -2,29 +2,38 @@ import { Toaster } from "@ccr/ui/components/sonner";
 import { TooltipProvider } from "@ccr/ui/components/tooltip";
 import type { Metadata, Viewport } from "next";
 import { Inter, JetBrains_Mono } from "next/font/google";
+import { I18nProvider } from "@/i18n/client";
+import { getI18n, MESSAGES } from "@/i18n/server";
 import "./globals.css";
 
-const inter = Inter({ subsets: ["latin"], variable: "--font-inter", display: "swap" });
-const mono = JetBrains_Mono({ subsets: ["latin"], variable: "--font-mono-face", display: "swap" });
+// The "vietnamese" subset carries the precomposed letters with diacritics (ă, ơ, ư, ệ, ...).
+const inter = Inter({ subsets: ["latin", "vietnamese"], variable: "--font-inter", display: "swap" });
+const mono = JetBrains_Mono({ subsets: ["latin", "vietnamese"], variable: "--font-mono-face", display: "swap" });
 
-export const metadata: Metadata = {
-  title: { default: "Clinical Case Room", template: "%s · Clinical Case Room" },
-  description: "Multiplayer AI for clinical teams: shared patient context, evidence-grounded AI and human-approved decisions.",
-  robots: { index: false, follow: false },
-};
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return {
+    title: { default: t("app.name"), template: `%s · ${t("app.name")}` },
+    description: t("app.description"),
+    robots: { index: false, follow: false },
+  };
+}
 
 export const viewport: Viewport = {
   themeColor: "#f8fafc",
 };
 
-export default function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
+  const { locale } = await getI18n();
   return (
-    <html lang="en" className={`${inter.variable} ${mono.variable}`}>
+    <html lang={locale} className={`${inter.variable} ${mono.variable}`}>
       <body className="min-h-dvh font-sans text-sm">
-        <TooltipProvider>
-          {children}
-          <Toaster />
-        </TooltipProvider>
+        <I18nProvider locale={locale} messages={MESSAGES[locale]}>
+          <TooltipProvider>
+            {children}
+            <Toaster />
+          </TooltipProvider>
+        </I18nProvider>
       </body>
     </html>
   );

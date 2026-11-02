@@ -8,18 +8,20 @@ import { Spinner } from "@ccr/ui/components/misc";
 import { NativeSelect } from "@ccr/ui/components/native-select";
 import { Textarea } from "@ccr/ui/components/textarea";
 import { cn } from "@ccr/ui/lib/utils";
-import { DOCUMENT_TYPE_LABELS, DOCUMENT_TYPES, type DocumentType } from "@ccr/types";
+import { DOCUMENT_TYPES, type DocumentType } from "@ccr/types";
 import { ClipboardPasteIcon, FileUpIcon, SparklesIcon, UploadCloudIcon } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useRef, useState, useTransition } from "react";
 import { toast } from "sonner";
+import { useI18n } from "@/i18n/client";
 
 function guessType(name: string): DocumentType {
   const lower = name.toLowerCase();
-  if (/path|biops|histo/.test(lower)) return "PATHOLOGY_REPORT";
-  if (/\bct\b|mri|pet|x-?ray|ultrasound|radiol|imaging|echo/.test(lower)) return "IMAGING_REPORT";
-  if (/lab|cbc|panel|culture/.test(lower)) return "LAB_RESULT";
-  if (/discharge/.test(lower)) return "DISCHARGE_SUMMARY";
+  // English and Vietnamese file names ("giai phau benh", "sieu am", ... without diacritics too).
+  if (/path|biops|histo|giải phẫu|giai phau|sinh thiết|sinh thiet|mô bệnh|mo benh/.test(lower)) return "PATHOLOGY_REPORT";
+  if (/\bct\b|mri|pet|x-?ray|ultrasound|radiol|imaging|echo|siêu âm|sieu am|x-?quang|chụp|chup|chẩn đoán hình ảnh|cdha/.test(lower)) return "IMAGING_REPORT";
+  if (/lab|cbc|panel|culture|xét nghiệm|xet nghiem|công thức máu|sinh hóa|sinh hoa/.test(lower)) return "LAB_RESULT";
+  if (/discharge|xuất viện|xuat vien|ra viện|ra vien/.test(lower)) return "DISCHARGE_SUMMARY";
   return "CLINICAL_NOTE";
 }
 
@@ -34,6 +36,7 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
   const [error, setError] = useState<string | null>(null);
   const [pending, startTransition] = useTransition();
   const inputRef = useRef<HTMLInputElement>(null);
+  const { t, locale } = useI18n();
 
   function reset() {
     setFile(null);
@@ -58,7 +61,7 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
     form.set("type", type);
     form.set("documentDate", date);
     if (mode === "file") {
-      if (!file) return setError("Choose a PDF or text file.");
+      if (!file) return setError(t("upload.chooseFile"));
       form.set("file", file);
     } else {
       form.set("text", text);
@@ -67,11 +70,11 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
       const response = await fetch(`/api/cases/${caseId}/documents`, { method: "POST", body: form });
       const body = (await response.json().catch(() => ({}))) as { error?: string; characters?: number };
       if (!response.ok) {
-        setError(body.error ?? "Upload failed.");
+        setError(body.error ?? t("upload.failed"));
         return;
       }
-      toast.success("Document added to the case", {
-        description: `${(body.characters ?? 0).toLocaleString()} characters extracted. The AI is updating the timeline and shared memory.`,
+      toast.success(t("upload.added"), {
+        description: t("upload.addedDescription", { count: (body.characters ?? 0).toLocaleString(locale === "vi" ? "vi-VN" : "en-US") }),
       });
       reset();
       onOpenChange(false);
@@ -81,19 +84,17 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
 
   return (
     <Dialog open={open} onOpenChange={(value) => (pending ? undefined : onOpenChange(value))}>
-      <DialogContent className="sm:max-w-xl">
+      <DialogContent closeLabel={t("common.close")} className="sm:max-w-xl">
         <DialogHeader>
-          <DialogTitle>Upload clinical document</DialogTitle>
-          <DialogDescription>
-            PDF or text reports (notes, labs, radiology and pathology reports). Imaging is represented by its text report only. Synthetic data only.
-          </DialogDescription>
+          <DialogTitle>{t("upload.title")}</DialogTitle>
+          <DialogDescription>{t("upload.description")}</DialogDescription>
         </DialogHeader>
 
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-muted p-1">
           {(
             [
-              ["file", "Upload file", FileUpIcon],
-              ["paste", "Paste text", ClipboardPasteIcon],
+              ["file", t("upload.modeFile"), FileUpIcon],
+              ["paste", t("upload.modePaste"), ClipboardPasteIcon],
             ] as const
           ).map(([key, label, Icon]) => (
             <button
@@ -126,12 +127,12 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
             {file ? (
               <div>
                 <div className="text-[13px] font-medium">{file.name}</div>
-                <div className="text-xs text-muted-foreground">{(file.size / 1024).toFixed(0)} KB · click to change</div>
+                <div className="text-xs text-muted-foreground">{t("upload.fileMeta", { size: (file.size / 1024).toFixed(0) })}</div>
               </div>
             ) : (
               <div>
-                <div className="text-[13px] font-medium">Drop a PDF or .txt file, or click to browse</div>
-                <div className="text-xs text-muted-foreground">Up to 10 MB. Text is extracted automatically.</div>
+                <div className="text-[13px] font-medium">{t("upload.drop")}</div>
+                <div className="text-xs text-muted-foreground">{t("upload.limit")}</div>
               </div>
             )}
             <input
@@ -144,12 +145,12 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
           </button>
         ) : (
           <div className="space-y-1.5">
-            <Label htmlFor="doc-text">Report text</Label>
+            <Label htmlFor="doc-text">{t("upload.reportText")}</Label>
             <Textarea
               id="doc-text"
               value={text}
               onChange={(event) => setText(event.target.value)}
-              placeholder={"IMPRESSION:\n1. ..."}
+              placeholder={t("upload.textPlaceholder")}
               className="min-h-44 font-mono text-[12.5px]"
             />
           </div>
@@ -157,39 +158,39 @@ export function UploadDocumentDialog({ caseId, open, onOpenChange }: { caseId: s
 
         <div className="grid gap-3 sm:grid-cols-[1fr_180px_150px]">
           <div className="space-y-1.5">
-            <Label htmlFor="doc-title">Title</Label>
-            <Input id="doc-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder="CT chest with contrast" />
+            <Label htmlFor="doc-title">{t("upload.docTitle")}</Label>
+            <Input id="doc-title" value={title} onChange={(event) => setTitle(event.target.value)} placeholder={t("upload.titlePlaceholder")} />
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="doc-type">Type</Label>
+            <Label htmlFor="doc-type">{t("upload.type")}</Label>
             <NativeSelect id="doc-type" value={type} onChange={(event) => setType(event.target.value as DocumentType)}>
               {DOCUMENT_TYPES.map((value) => (
                 <option key={value} value={value}>
-                  {DOCUMENT_TYPE_LABELS[value]}
+                  {t(`enum.documentType.${value}`)}
                 </option>
               ))}
             </NativeSelect>
           </div>
           <div className="space-y-1.5">
-            <Label htmlFor="doc-date">Document date</Label>
+            <Label htmlFor="doc-date">{t("upload.date")}</Label>
             <Input id="doc-date" type="date" value={date} onChange={(event) => setDate(event.target.value)} />
           </div>
         </div>
 
         <div className="flex items-start gap-2 rounded-lg border border-ai-border bg-ai-soft px-3 py-2 text-xs text-ai">
           <SparklesIcon className="mt-0.5 size-3.5 shrink-0" />
-          After upload, the AI extracts timeline events and updates the shared patient memory. Everything it generates is labeled and linked to this document.
+          {t("upload.aiNote")}
         </div>
 
         {error && <p className="rounded-md border border-danger-border bg-danger-soft px-3 py-2 text-[13px] text-danger">{error}</p>}
 
         <DialogFooter>
           <Button variant="outline" onClick={() => onOpenChange(false)} disabled={pending}>
-            Cancel
+            {t("common.cancel")}
           </Button>
           <Button onClick={submit} disabled={pending}>
             {pending ? <Spinner /> : <FileUpIcon />}
-            Add to case
+            {t("upload.submit")}
           </Button>
         </DialogFooter>
       </DialogContent>

@@ -6,6 +6,8 @@ import type { AIAnswerMetadata, AIErrorMetadata, UserMessageMetadata } from "@cc
 import { parseMessageMetadata } from "@ccr/types";
 import { z } from "zod";
 import type { MessageDTO } from "@/lib/dto";
+import { caseTextFor } from "@/i18n/translator-for";
+import { translateServerMessage } from "@/i18n/server-messages";
 import { parseMentions } from "@/lib/mentions";
 import type { SessionUser } from "../auth/session";
 import { assertCaseAccess } from "../authz/case-access";
@@ -116,6 +118,8 @@ export async function answerInDiscussion(input: {
   requester: { id: string; name: string };
   /** Reservation made when the question was posted (see postMessage). */
   aiRunId: string;
+  /** The organization's language, for the failure notice posted in the discussion. */
+  organizationLocale?: string;
 }) {
   const { caseRoomId, question, requester } = input;
   const requestId = randomUUID();
@@ -176,7 +180,10 @@ export async function answerInDiscussion(input: {
   } catch (error) {
     await finishAIRun(input.aiRunId, "FAILED", error);
     console.error("[ai] answer failed", error);
-    const userMessage = error instanceof AppError ? error.message : toUserMessage(error);
+    const userMessage = translateServerMessage(
+      error instanceof AppError ? error.message : toUserMessage(error),
+      caseTextFor({ organizationLocale: input.organizationLocale ?? "en" }),
+    );
     const metadata: AIErrorMetadata = {
       kind: "ai_error",
       question,

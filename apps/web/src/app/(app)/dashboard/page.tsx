@@ -11,28 +11,40 @@ import { DecisionStatusBadge } from "@/components/shared/badges";
 import { EmptyState } from "@/components/shared/empty-state";
 import { TimeAgo } from "@/components/shared/misc";
 import { TaskRow } from "@/components/tasks/task-row";
+import { INTL_LOCALE } from "@/i18n/config";
+import { rich } from "@/i18n/rich";
+import { getI18n } from "@/i18n/server";
 import { shortName } from "@/lib/activity";
 import { requireUser } from "@/server/auth/session";
 import { can } from "@/server/authz/permissions";
 import { getDashboard } from "@/server/services/dashboard";
 
-export const metadata: Metadata = { title: "Dashboard" };
+export async function generateMetadata(): Promise<Metadata> {
+  const { t } = await getI18n();
+  return { title: t("nav.dashboard") };
+}
 
-function greeting(): string {
+function greetingKey() {
   const hour = new Date().getHours();
-  return hour < 12 ? "Good morning" : hour < 18 ? "Good afternoon" : "Good evening";
+  return hour < 12 ? "dashboard.greeting.morning" : hour < 18 ? "dashboard.greeting.afternoon" : "dashboard.greeting.evening";
 }
 
 export default async function DashboardPage() {
   const user = await requireUser();
   const data = await getDashboard(user);
   const canCreate = can(user, "case.create");
+  const { t, locale } = await getI18n();
 
   const stats = [
-    { label: "Active cases", value: data.stats.activeCases, icon: FolderHeartIcon, tone: "text-primary bg-primary/10" },
-    { label: "Awaiting your approval", value: data.stats.pendingApprovals, icon: ScaleIcon, tone: "text-amber-700 bg-amber-50" },
-    { label: "Your open tasks", value: data.stats.openTasks, icon: CheckSquareIcon, tone: "text-emerald-700 bg-emerald-50" },
-    { label: "Overdue", value: data.stats.overdueTasks, icon: AlarmClockIcon, tone: data.stats.overdueTasks ? "text-red-700 bg-red-50" : "text-muted-foreground bg-muted" },
+    { label: t("dashboard.activeCases"), value: data.stats.activeCases, icon: FolderHeartIcon, tone: "text-primary bg-primary/10" },
+    { label: t("dashboard.awaitingApproval"), value: data.stats.pendingApprovals, icon: ScaleIcon, tone: "text-amber-700 bg-amber-50" },
+    { label: t("dashboard.openTasks"), value: data.stats.openTasks, icon: CheckSquareIcon, tone: "text-emerald-700 bg-emerald-50" },
+    {
+      label: t("dashboard.overdue"),
+      value: data.stats.overdueTasks,
+      icon: AlarmClockIcon,
+      tone: data.stats.overdueTasks ? "text-red-700 bg-red-50" : "text-muted-foreground bg-muted",
+    },
   ];
 
   const taskList = (tasks: typeof data.tasks.open) => (
@@ -48,17 +60,15 @@ export default async function DashboardPage() {
       <div className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <div className="text-[13px] text-muted-foreground">
-            {new Date().toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" })}
+            {new Date().toLocaleDateString(INTL_LOCALE[locale], { weekday: "long", month: "long", day: "numeric" })}
           </div>
-          <h1 className="text-2xl font-semibold tracking-tight">
-            {greeting()}, {shortName(user.name)}
-          </h1>
+          <h1 className="text-2xl font-semibold tracking-tight">{t("dashboard.greetingName", { greeting: t(greetingKey()), name: shortName(user.name) })}</h1>
         </div>
         {canCreate && (
           <Button asChild>
             <Link href="/cases/new">
               <PlusIcon />
-              New case room
+              {t("dashboard.newCase")}
             </Link>
           </Button>
         )}
@@ -82,9 +92,9 @@ export default async function DashboardPage() {
         <div className="space-y-6">
           <section className="space-y-3">
             <div className="flex items-center justify-between">
-              <h2 className="text-sm font-semibold">Active cases</h2>
+              <h2 className="text-sm font-semibold">{t("dashboard.activeCases")}</h2>
               <Link href="/cases" className="text-[13px] font-medium text-primary hover:underline">
-                View all cases
+                {t("dashboard.viewAll")}
               </Link>
             </div>
             {data.activeCases.length ? (
@@ -94,18 +104,18 @@ export default async function DashboardPage() {
                 ))}
               </div>
             ) : (
-              <EmptyState icon={FolderHeartIcon} title="No active cases" description="Case rooms you are a member of will appear here." />
+              <EmptyState icon={FolderHeartIcon} title={t("dashboard.noActive.title")} description={t("dashboard.noActive.text")} />
             )}
           </section>
 
           <Card>
             <CardHeader>
-              <CardTitle>Pending decisions</CardTitle>
-              <CardDescription>Clinical decisions waiting for your human review</CardDescription>
+              <CardTitle>{t("dashboard.pending.title")}</CardTitle>
+              <CardDescription>{t("dashboard.pending.description")}</CardDescription>
             </CardHeader>
             <CardContent className="space-y-2">
               {data.pendingApprovals.length === 0 && (
-                <div className="rounded-lg border border-dashed px-4 py-6 text-center text-[13px] text-muted-foreground">No decisions are waiting for your approval.</div>
+                <div className="rounded-lg border border-dashed px-4 py-6 text-center text-[13px] text-muted-foreground">{t("dashboard.pending.none")}</div>
               )}
               {data.pendingApprovals.map(({ decision }) => {
                 const approved = decision.approvals.filter((a) => a.status === "APPROVED").length;
@@ -116,17 +126,23 @@ export default async function DashboardPage() {
                     </div>
                     <div className="min-w-0 flex-1">
                       <div className="flex items-center gap-2">
-                        <span className="text-[13px] font-semibold">Decision #{decision.number}</span>
+                        <span className="text-[13px] font-semibold">{t("decision.number", { number: decision.number })}</span>
                         <DecisionStatusBadge status={decision.status} />
                       </div>
                       <div className="truncate text-[13px] text-foreground/90">{decision.title}</div>
                       <div className="text-xs text-muted-foreground">
-                        {decision.caseRoom.patient.firstName} {decision.caseRoom.patient.lastName} · proposed by {shortName(decision.createdBy.name)} ·{" "}
-                        <TimeAgo date={decision.createdAt} /> · {approved}/{decision.approvals.length} approvals
+                        {rich(
+                          t("dashboard.pending.meta", {
+                            patient: `${decision.caseRoom.patient.firstName} ${decision.caseRoom.patient.lastName}`,
+                            name: shortName(decision.createdBy.name),
+                            approvals: t("dashboard.pending.approvals", { approved, total: decision.approvals.length }),
+                          }),
+                          { time: <TimeAgo date={decision.createdAt} /> },
+                        )}
                       </div>
                     </div>
                     <Button size="sm" asChild>
-                      <Link href={`/cases/${decision.caseRoom.id}/decisions#decision-${decision.id}`}>Review</Link>
+                      <Link href={`/cases/${decision.caseRoom.id}/decisions#decision-${decision.id}`}>{t("dashboard.review")}</Link>
                     </Button>
                   </div>
                 );
@@ -138,26 +154,26 @@ export default async function DashboardPage() {
         <div className="space-y-6">
           <Card className="overflow-hidden">
             <CardHeader className="pb-2">
-              <CardTitle>Tasks</CardTitle>
+              <CardTitle>{t("nav.tasks")}</CardTitle>
               <CardAction>
                 <Link href="/tasks" className="text-[13px] font-medium text-primary hover:underline">
-                  All tasks
+                  {t("dashboard.allTasks")}
                 </Link>
               </CardAction>
             </CardHeader>
             <TaskTabs
               tabs={[
-                { key: "mine", label: "Assigned to me", count: data.tasks.open.length, content: taskList(data.tasks.open) },
-                { key: "overdue", label: "Overdue", count: data.tasks.overdue.length, tone: "danger", content: taskList(data.tasks.overdue) },
-                { key: "upcoming", label: "Upcoming", count: data.tasks.upcoming.length, content: taskList(data.tasks.upcoming) },
+                { key: "mine", label: t("dashboard.tab.mine"), count: data.tasks.open.length, content: taskList(data.tasks.open) },
+                { key: "overdue", label: t("dashboard.overdue"), count: data.tasks.overdue.length, tone: "danger", content: taskList(data.tasks.overdue) },
+                { key: "upcoming", label: t("dashboard.tab.upcoming"), count: data.tasks.upcoming.length, content: taskList(data.tasks.upcoming) },
               ]}
             />
           </Card>
 
           <Card>
             <CardHeader>
-              <CardTitle>Recent activity</CardTitle>
-              <CardDescription>Across your care teams</CardDescription>
+              <CardTitle>{t("dashboard.recent")}</CardTitle>
+              <CardDescription>{t("dashboard.recentDescription")}</CardDescription>
             </CardHeader>
             <CardContent>
               <ActivityFeed items={data.activity} compact />

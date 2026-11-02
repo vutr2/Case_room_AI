@@ -17,6 +17,7 @@ export type AuditAction =
   | "org.member_deactivated"
   | "org.member_reactivated"
   | "org.renamed"
+  | "org.locale_changed"
   | "account.password_changed"
   | "account.password_reset"
   | "account.profile_updated"

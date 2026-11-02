@@ -1,6 +1,9 @@
+"use client";
+
 import { Avatar, AvatarFallback } from "@ccr/ui/components/avatar";
 import { cn } from "@ccr/ui/lib/utils";
 import { SparklesIcon } from "lucide-react";
+import { useI18n } from "@/i18n/client";
 import { initials } from "@/lib/format";
 
 const PALETTE = [
@@ -40,6 +43,7 @@ export function UserAvatar({
   online?: boolean;
   className?: string;
 }) {
+  const { t } = useI18n();
   return (
     <span className={cn("relative inline-flex shrink-0", className)} title={user.name}>
       <Avatar className={cn(SIZES[size])}>
@@ -51,7 +55,7 @@ export function UserAvatar({
             "absolute -right-0.5 -bottom-0.5 size-2.5 rounded-full border-2 border-card",
             online ? "bg-emerald-500" : "bg-slate-300",
           )}
-          aria-label={online ? "online" : "offline"}
+          aria-label={online ? t("avatar.online") : t("avatar.offline")}
         />
       )}
     </span>
@@ -59,6 +63,7 @@ export function UserAvatar({
 }
 
 export function AIAvatar({ size = "md", className }: { size?: keyof typeof SIZES; className?: string }) {
+  const { t } = useI18n();
   return (
     <span
       className={cn(
@@ -66,7 +71,7 @@ export function AIAvatar({ size = "md", className }: { size?: keyof typeof SIZES
         SIZES[size],
         className,
       )}
-      title="AI case assistant"
+      title={t("avatar.ai")}
     >
       <SparklesIcon className={size === "lg" ? "size-5" : size === "md" ? "size-4" : "size-3"} />
     </span>

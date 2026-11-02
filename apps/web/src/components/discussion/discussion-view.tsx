@@ -3,6 +3,10 @@
 import { SparklesIcon } from "lucide-react";
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { toast } from "sonner";
+import { INTL_LOCALE } from "@/i18n/config";
+import { useI18n } from "@/i18n/client";
+import { rich } from "@/i18n/rich";
+import type { Translator } from "@/i18n/translate";
 import type { MessageDTO } from "@/lib/dto";
 import { postMessageAction, toggleReactionAction } from "@/server/actions/messages";
 import { useCaseActions } from "../case/case-actions";
@@ -13,14 +17,14 @@ import { MessageItem } from "./message-item";
 
 const GROUP_WINDOW_MS = 5 * 60_000;
 
-function dayLabel(iso: string): string {
+function dayLabel(iso: string, t: Translator): string {
   const date = new Date(iso);
   const today = new Date();
   const yesterday = new Date();
   yesterday.setDate(today.getDate() - 1);
-  if (date.toDateString() === today.toDateString()) return "Today";
-  if (date.toDateString() === yesterday.toDateString()) return "Yesterday";
-  return date.toLocaleDateString("en-US", { weekday: "long", month: "long", day: "numeric" });
+  if (date.toDateString() === today.toDateString()) return t("discussion.today");
+  if (date.toDateString() === yesterday.toDateString()) return t("discussion.yesterday");
+  return date.toLocaleDateString(INTL_LOCALE[t.locale], { weekday: "long", month: "long", day: "numeric" });
 }
 
 function firstSentence(text: string, max = 90): string {
@@ -32,6 +36,7 @@ function firstSentence(text: string, max = 90): string {
 export function DiscussionView({ initialMessages }: { initialMessages: MessageDTO[] }) {
   const { caseId, members, currentUser, permissions, openCreateTask, openCreateDecision } = useCaseActions();
   const realtime = useCaseRealtime();
+  const { t } = useI18n();
   const [messages, setMessages] = useState<MessageDTO[]>(initialMessages);
   const [pendingIds, setPendingIds] = useState<Set<string>>(new Set());
   const [highlightId, setHighlightId] = useState<string | null>(null);
@@ -141,16 +146,14 @@ export function DiscussionView({ initialMessages }: { initialMessages: MessageDT
   const canTask = permissions.manageTasks;
   const canDecide = permissions.createDecision;
 
-  const days = messages.map((message) => dayLabel(message.createdAt));
+  const days = messages.map((message) => dayLabel(message.createdAt, t));
   return (
     <div className="flex h-full min-h-0 flex-col">
       <div ref={scrollRef} onScroll={onScroll} className="min-h-0 flex-1 overflow-y-auto pt-4 pb-6 scrollbar-thin">
         <div className="mx-auto max-w-4xl">
           <div className="px-6 pb-4">
-            <h2 className="text-base font-semibold">Case discussion</h2>
-            <p className="text-[13px] text-muted-foreground">
-              The whole care team and the AI case assistant, in one thread. Mention <span className="font-medium text-ai">@AI</span> for evidence-grounded answers.
-            </p>
+            <h2 className="text-base font-semibold">{t("discussion.title")}</h2>
+            <p className="text-[13px] text-muted-foreground">{rich(t("discussion.intro"), { ai: <span className="font-medium text-ai">@AI</span> })}</p>
           </div>
           {messages.map((message, index) => {
             const previous = messages[index - 1];
@@ -205,7 +208,7 @@ export function DiscussionView({ initialMessages }: { initialMessages: MessageDT
               <AIAvatar size="md" />
               <div className="flex items-center gap-2 rounded-xl border border-ai-border bg-ai-soft px-3.5 py-2.5 text-[13px] text-ai">
                 <SparklesIcon className="size-4 animate-pulse" />
-                {activity.label}
+                {t("ai.answering", { name: activity.requestedBy })}
                 <span className="flex gap-0.5">
                   <span className="size-1 animate-bounce rounded-full bg-ai [animation-delay:-0.3s]" />
                   <span className="size-1 animate-bounce rounded-full bg-ai [animation-delay:-0.15s]" />
@@ -227,7 +230,7 @@ export function DiscussionView({ initialMessages }: { initialMessages: MessageDT
                   <span className="size-1 animate-bounce rounded-full bg-muted-foreground [animation-delay:-0.15s]" />
                   <span className="size-1 animate-bounce rounded-full bg-muted-foreground" />
                 </span>
-                {realtime.typing.map((t) => t.name).join(", ")} {realtime.typing.length === 1 ? "is" : "are"} typing…
+                {t.plural("discussion.typing", realtime.typing.length, { names: realtime.typing.map((entry) => entry.name).join(", ") })}
               </span>
             )}
           </div>

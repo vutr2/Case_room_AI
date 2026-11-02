@@ -2,7 +2,7 @@ import { Badge } from "@ccr/ui/components/badge";
 import { cn } from "@ccr/ui/lib/utils";
 import type { CaseSummaryContent } from "@ccr/types";
 import { AlertCircleIcon, HelpCircleIcon, InfoIcon, SearchXIcon } from "lucide-react";
-import { formatDate } from "@/lib/format";
+import { getI18n } from "@/i18n/server";
 import { AIGeneratedBadge, DraftBadge, HumanApprovedBadge } from "../shared/badges";
 import { TimeAgo } from "../shared/misc";
 import { SourceChip } from "../shared/sources";
@@ -35,23 +35,24 @@ function SectionTitle({ children }: { children: React.ReactNode }) {
   return <h3 className="mb-2 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">{children}</h3>;
 }
 
-export function SummaryCard(props: SummaryCardProps) {
+export async function SummaryCard(props: SummaryCardProps) {
   const { summary, caseId } = props;
+  const { t, fmt } = await getI18n();
   return (
     <article className="overflow-hidden rounded-xl border border-ai-border bg-card shadow-[0_1px_2px_0_rgb(15_23_42/0.04)]">
       <header className="flex flex-wrap items-center justify-between gap-3 border-b border-ai-border/60 bg-ai-soft/50 px-5 py-3">
         <div className="flex flex-wrap items-center gap-2">
-          <h2 className="text-sm font-semibold">Case summary</h2>
+          <h2 className="text-sm font-semibold">{t("summary.title")}</h2>
           <AIGeneratedBadge />
-          {props.status === "APPROVED" ? <HumanApprovedBadge label={`Reviewed by ${props.approvedBy ?? "clinician"}`} /> : <DraftBadge />}
+          {props.status === "APPROVED" ? <HumanApprovedBadge label={t("summary.reviewedBy", { name: props.approvedBy ?? t("summary.clinician") })} /> : <DraftBadge />}
         </div>
         <div className="flex items-center gap-2">
           <span className="text-[11.5px] text-muted-foreground">
             <TimeAgo date={props.createdAt} />
-            {props.requestedBy ? ` · requested by ${props.requestedBy}` : ""}
+            {props.requestedBy ? ` · ${t("summary.requestedBy", { name: props.requestedBy })}` : ""}
           </span>
           {props.canApprove && props.status === "DRAFT" && <MarkReviewedButton caseId={caseId} briefId={props.briefId} version={props.version} />}
-          {props.canGenerate && <GenerateSummaryButton caseId={caseId} label="Regenerate" variant="ai-outline" />}
+          {props.canGenerate && <GenerateSummaryButton caseId={caseId} regenerate />}
         </div>
       </header>
 
@@ -63,18 +64,18 @@ export function SummaryCard(props: SummaryCardProps) {
 
         <div className="grid gap-4 md:grid-cols-2">
           <div className="rounded-lg border bg-background/60 p-3.5">
-            <SectionTitle>Current diagnosis</SectionTitle>
+            <SectionTitle>{t("summary.diagnosis")}</SectionTitle>
             <p className="text-[13px] leading-relaxed">{summary.currentDiagnosis}</p>
           </div>
           <div className="rounded-lg border bg-background/60 p-3.5">
-            <SectionTitle>Current treatment</SectionTitle>
+            <SectionTitle>{t("summary.treatment")}</SectionTitle>
             <p className="text-[13px] leading-relaxed">{summary.currentTreatment}</p>
           </div>
         </div>
 
         {summary.keyFindings.length > 0 && (
           <section>
-            <SectionTitle>Key findings</SectionTitle>
+            <SectionTitle>{t("summary.keyFindings")}</SectionTitle>
             <ul className="space-y-2.5">
               {summary.keyFindings.map((finding, index) => (
                 <li key={index} className="flex gap-3">
@@ -97,7 +98,7 @@ export function SummaryCard(props: SummaryCardProps) {
 
         {summary.latestResults.length > 0 && (
           <section>
-            <SectionTitle>Latest important results</SectionTitle>
+            <SectionTitle>{t("summary.latestResults")}</SectionTitle>
             <div className="overflow-hidden rounded-lg border">
               <table className="w-full text-[13px]">
                 <tbody className="divide-y">
@@ -108,7 +109,7 @@ export function SummaryCard(props: SummaryCardProps) {
                         {result.value}
                         {result.flag === "critical" && <AlertCircleIcon className="ml-1 inline size-3.5" />}
                       </td>
-                      <td className="w-24 px-3 py-2 text-right text-xs whitespace-nowrap text-muted-foreground">{result.date ? formatDate(result.date, { year: false }) : ""}</td>
+                      <td className="w-24 px-3 py-2 text-right text-xs whitespace-nowrap text-muted-foreground">{result.date ? fmt.shortDate(result.date) : ""}</td>
                       <td className="w-28 px-3 py-1.5 text-right">
                         {result.sources[0] && <SourceChip caseId={caseId} source={result.sources[0]} />}
                       </td>
@@ -123,7 +124,7 @@ export function SummaryCard(props: SummaryCardProps) {
         <div className="grid gap-4 md:grid-cols-2">
           {summary.outstandingQuestions.length > 0 && (
             <section className="rounded-lg border bg-background/60 p-3.5">
-              <SectionTitle>Outstanding questions</SectionTitle>
+              <SectionTitle>{t("summary.questions")}</SectionTitle>
               <ul className="space-y-1.5">
                 {summary.outstandingQuestions.map((question, index) => (
                   <li key={index} className="flex gap-2 text-[13px] leading-snug">
@@ -136,7 +137,7 @@ export function SummaryCard(props: SummaryCardProps) {
           )}
           {summary.missingInformation.length > 0 && (
             <section className="rounded-lg border border-draft-border bg-draft-soft/50 p-3.5">
-              <SectionTitle>Missing information</SectionTitle>
+              <SectionTitle>{t("summary.missing")}</SectionTitle>
               <ul className="space-y-2">
                 {summary.missingInformation.map((item, index) => (
                   <li key={index} className="flex gap-2 text-[13px] leading-snug">
@@ -144,7 +145,7 @@ export function SummaryCard(props: SummaryCardProps) {
                     <span>
                       <span className="font-medium">{item.item}</span>{" "}
                       <Badge variant={item.priority === "high" ? "danger" : "muted"} className="ml-1 align-middle">
-                        {item.priority}
+                        {t(`summary.priority.${item.priority}`)}
                       </Badge>
                       <span className="block text-xs text-muted-foreground">{item.reason}</span>
                     </span>
@@ -158,11 +159,11 @@ export function SummaryCard(props: SummaryCardProps) {
         <footer className="flex items-start gap-2 rounded-lg bg-muted/60 px-3 py-2 text-xs text-muted-foreground">
           <InfoIcon className="mt-0.5 size-3.5 shrink-0" />
           <span>
-            <span className="font-medium text-foreground/80">Limitations:</span> {summary.limitations}
+            <span className="font-medium text-foreground/80">{t("ai.limitations")}</span> {summary.limitations}
             {props.provider && (
               <span className="block pt-0.5">
-                Generated by {props.provider}
-                {props.model ? ` (${props.model})` : ""}. AI-generated content must be reviewed by a qualified healthcare professional.
+                {t("ai.generatedBy", { provider: props.provider })}
+                {props.model ? ` (${props.model})` : ""}. {t("ai.reviewRequired")}
               </span>
             )}
           </span>

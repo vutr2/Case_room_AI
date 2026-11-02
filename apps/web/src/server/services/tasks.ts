@@ -3,6 +3,7 @@ import { prisma, type Prisma } from "@ccr/database";
 import type { TaskStatus } from "@ccr/types";
 import { TASK_PRIORITIES, TASK_STATUS_LABELS, TASK_STATUSES } from "@ccr/types";
 import { z } from "zod";
+import { caseTextFor } from "@/i18n/translator-for";
 import type { SessionUser } from "../auth/session";
 import { accessibleCaseWhere, assertCaseAccess } from "../authz/case-access";
 import { assertCan } from "../authz/permissions";
@@ -90,7 +91,9 @@ export async function createTask(user: SessionUser, caseRoomId: string, raw: Tas
     });
     await postSystemMessage(tx, {
       caseRoomId,
-      content: `${user.name} created task "${task.title}"${task.assignedTo ? ` for ${task.assignedTo.name}` : ""}.`,
+      content: task.assignedTo
+        ? caseTextFor(user)("system.taskCreatedFor", { name: user.name, title: task.title, assignee: task.assignedTo.name })
+        : caseTextFor(user)("system.taskCreated", { name: user.name, title: task.title }),
       event: "task.created",
       refType: "task",
       refId: task.id,
@@ -127,7 +130,7 @@ export async function updateTaskStatus(user: SessionUser, taskId: string, status
     if (status === "DONE") {
       await postSystemMessage(tx, {
         caseRoomId: task.caseRoomId,
-        content: `${user.name} completed task "${task.title}".`,
+        content: caseTextFor(user)("system.taskCompleted", { name: user.name, title: task.title }),
         event: "task.completed",
         refType: "task",
         refId: taskId,

@@ -23,7 +23,7 @@ export interface CaseCardData {
 
 export function CaseCard({ room }: { room: CaseCardData }) {
   const { patient } = room;
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   return (
     <Link
       href={`/cases/${room.id}`}
@@ -33,7 +33,7 @@ export function CaseCard({ room }: { room: CaseCardData }) {
         <div className="min-w-0">
           <div className="flex items-center gap-2">
             <span className="truncate text-[15px] font-semibold tracking-tight group-hover:text-primary">
-              {patient.firstName} {patient.lastName}
+              {fmt.patientName(patient)}
             </span>
           </div>
           <div className="mt-0.5 text-xs text-muted-foreground">

@@ -19,8 +19,8 @@ export async function generateMetadata({ params }: { params: Promise<{ caseId: s
   const user = await requireUser();
   // Same membership check as the page: metadata is rendered even when the page itself is a 404.
   const room = await findAccessibleCase(user, caseId);
-  const { t } = await getI18n();
-  return { title: room ? `${room.patient.firstName} ${room.patient.lastName}` : t("case.fallbackTitle") };
+  const { t, fmt } = await getI18n();
+  return { title: room ? fmt.patientName(room.patient) : t("case.fallbackTitle") };
 }
 
 export default async function CaseLayout({ children, params }: { children: React.ReactNode; params: Promise<{ caseId: string }> }) {
@@ -51,11 +51,12 @@ export default async function CaseLayout({ children, params }: { children: React
   ]);
   const ai = getAIProviderInfo();
   const patient = room.patient;
+  const { fmt } = await getI18n();
 
   const clientData: CaseClientData = {
     caseId,
     caseTitle: room.title,
-    patientName: `${patient.firstName} ${patient.lastName}`,
+    patientName: fmt.patientName(patient),
     currentUser: { id: user.id, name: user.name, role: user.role },
     permissions: {
       manageCase: can(user, "case.manage"),
@@ -85,7 +86,7 @@ export default async function CaseLayout({ children, params }: { children: React
             status={room.status}
             specialty={room.specialty}
             patient={{
-              name: `${patient.firstName} ${patient.lastName}`,
+              name: fmt.patientName(patient),
               age: ageFromDob(patient.dateOfBirth),
               sex: patient.sex,
               mrn: patient.syntheticMedicalRecordNumber,

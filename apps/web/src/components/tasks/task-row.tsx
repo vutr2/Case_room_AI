@@ -40,7 +40,7 @@ export function DueChip({ dueDate, done }: { dueDate: Date | string | null; done
 /** Compact task row with an inline status toggle (dashboard, tasks page). */
 export function TaskRow({ task, showCase = true, canManage = true }: { task: TaskRowData; showCase?: boolean; canManage?: boolean }) {
   const done = task.status === "DONE";
-  const { t } = useI18n();
+  const { t, fmt } = useI18n();
   return (
     <div className="flex items-start gap-2.5 rounded-lg px-2 py-2 hover:bg-accent/60">
       <TaskStatusToggle taskId={task.id} status={task.status} disabled={!canManage} />
@@ -56,7 +56,7 @@ export function TaskRow({ task, showCase = true, canManage = true }: { task: Tas
           )}
           {showCase && task.caseRoom && (
             <Link href={`/cases/${task.caseRoom.id}/tasks#task-${task.id}`} className="truncate text-[11px] text-muted-foreground hover:text-primary hover:underline">
-              {task.caseRoom.patient.firstName} {task.caseRoom.patient.lastName}
+              {fmt.patientName(task.caseRoom.patient)}
             </Link>
           )}
         </div>

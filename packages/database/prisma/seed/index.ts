@@ -7,6 +7,7 @@ import { at, audit, type SeedContext } from "./helpers";
 import { seedJohnCarter } from "./patients/john-carter";
 import { lindaThompson, mariaGonzalez, robertKim, samuelOkafor } from "./patients/other-cases";
 import { DEMO_PASSWORD, DEMO_USERS } from "./users";
+import { seedVietnameseHospital } from "./vietnam";
 
 /**
  * Resets the database to the synthetic demo dataset.
@@ -81,6 +82,8 @@ async function main() {
   console.log("› Seeding case: John Carter (flagship tumor board case)");
   await seedJohnCarter(ctx);
 
+  await seedVietnameseHospital(prisma, passwordHash);
+
   const counts = {
     organizations: await prisma.organization.count(),
     accounts: await prisma.identity.count(),
@@ -94,7 +97,7 @@ async function main() {
     auditEvents: await prisma.auditEvent.count(),
   };
   console.log("✓ Demo data ready:", counts);
-  console.log(`\nSign in with any demo account, e.g. nguyen@riverside.demo / ${DEMO_PASSWORD}`);
+  console.log(`\nSign in with any demo account, e.g. nguyen@riverside.demo or khoa@benhvien.demo / ${DEMO_PASSWORD}`);
 }
 
 /**

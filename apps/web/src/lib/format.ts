@@ -28,12 +28,13 @@ export function daysFromToday(value: DateInput, now: Date = new Date()): number 
   return Math.round((target - today) / 86_400_000);
 }
 
-export function patientName(patient: { firstName: string; lastName: string }): string {
-  return `${patient.firstName} ${patient.lastName}`;
+/** "Maria Gonzalez"; family name first ("Nguyễn Văn Thành") where names are written that way. */
+export function patientName(patient: { firstName: string; lastName: string }, familyNameFirst = false): string {
+  return familyNameFirst ? `${patient.lastName} ${patient.firstName}` : `${patient.firstName} ${patient.lastName}`;
 }
 
 export function initials(name: string): string {
-  // Without the title: "Dr. Elena Park" → EP, "BS. Nguyễn Văn An" → NA.
-  const parts = name.replace(/^(Dr|BS|ThS|TS)\.?\s+/i, "").split(/\s+/).filter(Boolean);
+  // Without the title: "Dr. Elena Park" → EP, "BS. Nguyễn Văn An" → NA, "ĐD. Ngô Thị Lan" → NL.
+  const parts = name.replace(/^(Dr|BS|ThS|TS|ĐD)\.?\s+/i, "").split(/\s+/).filter(Boolean);
   return ((parts[0]?.[0] ?? "") + (parts.length > 1 ? (parts.at(-1)?.[0] ?? "") : "")).toUpperCase() || "?";
 }

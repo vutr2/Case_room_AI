@@ -66,7 +66,7 @@ export interface StructuredResponse<T> {
 }
 
 export interface LLMClient {
-  readonly providerId: "anthropic" | "openai";
+  readonly providerId: "anthropic" | "openai" | "nvidia";
   readonly model: string;
   generateStructured<T>(request: StructuredRequest<T>): Promise<StructuredResponse<T>>;
 }

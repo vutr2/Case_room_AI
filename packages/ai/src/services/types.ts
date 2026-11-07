@@ -38,7 +38,7 @@ export interface CaseAIProvider {
   suggestFollowUpTasks(ctx: CaseContext, decisionId: string): Promise<AIRunResult<SuggestedTask[]>>;
 }
 
-export type AIProviderId = "anthropic" | "openai" | "demo";
+export type AIProviderId = "anthropic" | "openai" | "nvidia" | "demo";
 
 export interface AIProviderInfo {
   id: AIProviderId;

@@ -1,7 +1,7 @@
 /**
  * @ccr/ai: provider-agnostic clinical AI layer.
  *
- *   providers/  low-level LLM clients (Anthropic, OpenAI) behind LLMClient
+ *   providers/  low-level LLM clients (Anthropic, OpenAI, NVIDIA NIM) behind LLMClient
  *   context/    case record serialization + citation registry (source grounding)
  *   retrieval/  lexical passage retrieval (BM25)
  *   prompts/    system + task prompts
@@ -16,6 +16,7 @@ export type { LLMClient, LLMUsage, ResponseBilling, StructuredRequest, Structure
 export { DEFAULT_MAX_OUTPUT_TOKENS } from "./providers/llm-client";
 export { AnthropicLLMClient, DEFAULT_ANTHROPIC_MODEL } from "./providers/anthropic";
 export { OpenAILLMClient, DEFAULT_OPENAI_MODEL } from "./providers/openai";
+export { NvidiaLLMClient, DEFAULT_NVIDIA_MODEL, DEFAULT_NVIDIA_BASE_URL } from "./providers/nvidia";
 
 export { SourceRegistry, verifyQuote, normalizeForMatch } from "./context/source-registry";
 export { numberInlineCitations } from "./context/citations";

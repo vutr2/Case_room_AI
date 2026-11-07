@@ -23,6 +23,9 @@ x-app-environment: &app-environment
   ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
   ANTHROPIC_MODEL: ${ANTHROPIC_MODEL:-claude-opus-5-5}
   ANTHROPIC_EFFORT: ${ANTHROPIC_EFFORT:-medium}
+  NVIDIA_API_KEY: ${NVIDIA_API_KEY:-}
+  NVIDIA_MODEL: ${NVIDIA_MODEL:-}
+  NVIDIA_BASE_URL: ${NVIDIA_BASE_URL:-}
   # Caps for a shared demo, counted in the database (0 disables a cap).
   AI_DAILY_REQUESTS_TOTAL: ${AI_DAILY_REQUESTS_TOTAL:-40}
   AI_DAILY_REQUESTS_PER_ORG: ${AI_DAILY_REQUESTS_PER_ORG:-40}

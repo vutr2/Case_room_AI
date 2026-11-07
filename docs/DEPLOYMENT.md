@@ -45,7 +45,7 @@ Set these in the container environment. Never bake them into an image.
 | `S3_BUCKET`, `S3_REGION`, `S3_ENDPOINT`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_FORCE_PATH_STYLE` | recommended | Private bucket for uploaded originals. Without `S3_BUCKET`, files go to `STORAGE_DIR`. |
 | `S3_SERVER_SIDE_ENCRYPTION` | optional | `AES256` (default), `aws:kms`, or empty for S3-compatible services that reject the header. |
 | `STORAGE_DIR` | without S3 | Local directory for originals; `/data/storage` in the image. Mount a persistent, backed-up volume there. |
-| `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, … | optional | Without keys the offline demo engine is used. Review the AI budget variables in [.env.example](../.env.example) before adding a paid key. |
+| `AI_PROVIDER`, `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `NVIDIA_API_KEY`, … | optional | Without keys the offline demo engine is used. Review the AI budget variables in [.env.example](../.env.example) before adding a paid key. |
 
 All abuse limits and AI budgets are documented in `.env.example`.
 

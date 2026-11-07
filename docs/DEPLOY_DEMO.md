@@ -120,6 +120,8 @@ The demo uses the offline engine unless `deploy/.env` turns on a provider. With 
 
 4. `docker compose up -d` restarts the app with it.
 
+To use NVIDIA Nemotron instead, set `AI_PROVIDER="nvidia"` and `NVIDIA_API_KEY="nvapi-..."` (a key from [build.nvidia.com](https://build.nvidia.com); its hosted API runs under NVIDIA's trial terms). `NVIDIA_MODEL` picks another model.
+
 The app also caps usage, counted in the database: by default 40 AI requests a day for the whole demo, 4 a minute per user and 2 at a time (`AI_DAILY_REQUESTS_TOTAL`, `AI_REQUESTS_PER_USER_PER_MINUTE`, `AI_CONCURRENT_RUNS_PER_ORG` in `deploy/docker-compose.yml`; override them in `deploy/.env`). Uploading a document also runs AI. The data sent to the provider is the synthetic demo data. To go back to the offline engine, set `AI_PROVIDER="demo"` and run `docker compose up -d`.
 
 ## Public access (optional)

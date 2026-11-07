@@ -163,6 +163,10 @@ describe("provider selection", () => {
     expect(resolveAIConfig({ ANTHROPIC_API_KEY: "sk-test" }).provider).toBe("anthropic");
     expect(resolveAIConfig({ OPENAI_API_KEY: "sk-test" }).provider).toBe("openai");
     expect(resolveAIConfig({ AI_PROVIDER: "demo", ANTHROPIC_API_KEY: "sk-test" }).provider).toBe("demo");
+    expect(resolveAIConfig({ NVIDIA_API_KEY: "nvapi-test" }).provider).toBe("nvidia");
+    expect(resolveAIConfig({ NVIDIA_BASE_URL: "http://nim:8000/v1" }).nvidia).toMatchObject({ baseURL: "http://nim:8000/v1", model: "nvidia/nemotron-3.5-super-vl-120b-a12b" });
+    expect(resolveAIConfig({ ANTHROPIC_API_KEY: "sk-test", NVIDIA_API_KEY: "nvapi-test" }).provider).toBe("anthropic");
+    expect(resolveAIConfig({ AI_PROVIDER: "nvidia", NVIDIA_API_KEY: "nvapi-test", NVIDIA_MODEL: "nvidia/nemotron-3-ultra-550b-a55b" }).nvidia.model).toBe("nvidia/nemotron-3-ultra-550b-a55b");
     expect(resolveAIConfig({ ANTHROPIC_API_KEY: "k" }).anthropic.model).toBe("claude-opus-5-5");
   });
 
@@ -170,6 +174,7 @@ describe("provider selection", () => {
     expect(createCaseAIProvider(resolveAIConfig({})).info.isDemo).toBe(true);
     expect(createCaseAIProvider(resolveAIConfig({ ANTHROPIC_API_KEY: "sk-test" })).info).toMatchObject({ id: "anthropic", model: "claude-opus-5-5" });
     expect(createCaseAIProvider(resolveAIConfig({ OPENAI_API_KEY: "sk-test" })).info.id).toBe("openai");
+    expect(createCaseAIProvider(resolveAIConfig({ NVIDIA_API_KEY: "nvapi-test" })).info).toMatchObject({ id: "nvidia", label: "NVIDIA NIM" });
     const previous = process.env.OPENAI_API_KEY;
     delete process.env.OPENAI_API_KEY;
     expect(() => createCaseAIProvider(resolveAIConfig({ AI_PROVIDER: "openai" }))).toThrow(AIConfigurationError);

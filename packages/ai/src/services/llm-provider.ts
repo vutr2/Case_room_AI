@@ -56,14 +56,20 @@ const ANSWER_NOTES: Record<OutputLanguage, { noSource: string; dropped: (count: 
   },
 };
 
-/** CaseAIProvider backed by a real LLM (Anthropic, OpenAI, ...). */
+const LLM_PROVIDER_LABELS: Record<LLMClient["providerId"], string> = {
+  anthropic: "Anthropic Claude",
+  openai: "OpenAI",
+  nvidia: "NVIDIA NIM",
+};
+
+/** CaseAIProvider backed by a real LLM (Anthropic, OpenAI, NVIDIA NIM, ...). */
 export class LLMCaseAIProvider implements CaseAIProvider {
   readonly info: AIProviderInfo;
 
   constructor(private readonly llm: LLMClient) {
     this.info = {
       id: llm.providerId,
-      label: llm.providerId === "anthropic" ? "Anthropic Claude" : "OpenAI",
+      label: LLM_PROVIDER_LABELS[llm.providerId],
       model: llm.model,
       isDemo: false,
     };

@@ -138,6 +138,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 provider: process.env.AI_PROVIDER || t("settings.auto"),
                 anthropic: config.anthropic.apiKey ? t("settings.keySet") : t("settings.keyNotSet"),
                 openai: config.openai.apiKey ? t("settings.keySet") : t("settings.keyNotSet"),
+                nvidia: config.nvidia.apiKey ? t("settings.keySet") : t("settings.keyNotSet"),
               })}
             </span>
           </Row>
@@ -147,6 +148,7 @@ export default async function SettingsPage({ searchParams }: { searchParams: Pro
                 anthropicKey: <Code>ANTHROPIC_API_KEY</Code>,
                 model: config.anthropic.model,
                 openaiKey: <Code>OPENAI_API_KEY</Code>,
+                nvidiaKey: <Code>NVIDIA_API_KEY</Code>,
                 env: <Code>.env</Code>,
               })}
             </p>

@@ -1,5 +1,6 @@
 import { resolveAIConfig, type AIConfig } from "../config";
 import { AnthropicLLMClient } from "../providers/anthropic";
+import { NvidiaLLMClient } from "../providers/nvidia";
 import { OpenAILLMClient } from "../providers/openai";
 import { DemoCaseAIProvider } from "./demo";
 import { LLMCaseAIProvider } from "./llm-provider";
@@ -18,6 +19,10 @@ export function createCaseAIProvider(config: AIConfig = resolveAIConfig()): Case
       );
     case "openai":
       return new LLMCaseAIProvider(new OpenAILLMClient({ apiKey: config.openai.apiKey, model: config.openai.model }));
+    case "nvidia":
+      return new LLMCaseAIProvider(
+        new NvidiaLLMClient({ apiKey: config.nvidia.apiKey, model: config.nvidia.model, baseURL: config.nvidia.baseURL }),
+      );
     case "demo":
       return new DemoCaseAIProvider({ simulatedLatencyMs: config.demo.simulatedLatencyMs });
   }

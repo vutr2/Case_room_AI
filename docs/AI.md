@@ -21,9 +21,10 @@ interface CaseAIProvider {
 |---|---|
 | `LLMCaseAIProvider` + `AnthropicLLMClient` | Claude via the official SDK. Structured outputs (`output_config.format` with Zod), adaptive thinking with configurable `effort`, server-side refusal fallback (`fallbacks: "default"`), and prompt caching of the serialized case record. |
 | `LLMCaseAIProvider` + `OpenAILLMClient` | Responses API with strict JSON-schema output (`zodTextFormat`). |
+| `LLMCaseAIProvider` + `NvidiaLLMClient` | NVIDIA NIM (default `nvidia/nemotron-3.5-super-vl-120b-a12b`) through the OpenAI-compatible Chat Completions API, with the schema enforced by guided decoding (`guided_json`). The model reasons first; its reasoning comes back separately and is discarded. No prompt caching, and `effort` is ignored. `NVIDIA_BASE_URL` points it at a self-hosted NIM, so case data can stay on the hospital's own GPUs. |
 | `DemoCaseAIProvider` | Offline and deterministic: section parsing, lab tables and trends, BM25 retrieval over documents and discussion, checklists for missing information. It quotes the record and does not interpret it. |
 
-Selection: `AI_PROVIDER` if set, otherwise Anthropic when `ANTHROPIC_API_KEY` is present, then OpenAI, then the demo engine (`resolveAIConfig`). Adding a provider means implementing `LLMClient.generateStructured()` (one method).
+Selection: `AI_PROVIDER` if set, otherwise Anthropic when `ANTHROPIC_API_KEY` is present, then OpenAI, then NVIDIA (`NVIDIA_API_KEY` or `NVIDIA_BASE_URL`), then the demo engine (`resolveAIConfig`). Adding a provider means implementing `LLMClient.generateStructured()` (one method).
 
 ## Context and retrieval
 

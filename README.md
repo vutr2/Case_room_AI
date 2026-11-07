@@ -68,9 +68,10 @@ The AI layer is provider-agnostic (`packages/ai`). Choose a provider in `.env`:
 |---|---|
 | `ANTHROPIC_API_KEY=…` | Anthropic Claude (default model `claude-opus-5-5`, structured outputs, server-side refusal fallback) |
 | `OPENAI_API_KEY=…` | OpenAI (Responses API with strict JSON schema; model via `OPENAI_MODEL`) |
+| `NVIDIA_API_KEY=…` or `NVIDIA_BASE_URL=…` | NVIDIA NIM (default model Nemotron 3.5 Super, guided JSON decoding): NVIDIA's hosted API or a NIM you run on your own GPUs |
 | neither | **Demo AI (offline)**: a deterministic, rule-based engine so the whole product works without keys |
 
-`AI_PROVIDER=anthropic|openai|demo` forces a choice. The offline engine is clearly labeled in the UI; it assembles answers from verbatim record content and never generates clinical interpretation. See [docs/AI.md](docs/AI.md).
+`AI_PROVIDER=anthropic|openai|nvidia|demo` forces a choice. The offline engine is clearly labeled in the UI; it assembles answers from verbatim record content and never generates clinical interpretation. See [docs/AI.md](docs/AI.md).
 
 ## Commands
 

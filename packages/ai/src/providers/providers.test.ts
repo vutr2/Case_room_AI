@@ -2,9 +2,10 @@ import Anthropic from "@anthropic-ai/sdk";
 import OpenAI from "openai";
 import { describe, expect, it } from "vitest";
 import { z } from "zod";
-import { AIOutputError, AIRefusalError } from "../errors";
+import { AIConfigurationError, AIOutputError, AIRefusalError } from "../errors";
 import { AnthropicLLMClient } from "./anthropic";
 import type { StructuredRequest } from "./llm-client";
+import { NvidiaLLMClient } from "./nvidia";
 import { OpenAILLMClient } from "./openai";
 
 /**
@@ -174,5 +175,55 @@ describe("OpenAILLMClient", () => {
       openAIResponse("incomplete", [{ type: "output_text", text: '{"answer":"cu', annotations: [] }], { incomplete_details: { reason: "max_output_tokens" } }),
     );
     await expect(llm.generateStructured(request)).rejects.toThrow(/incomplete \(max_output_tokens\)/);
+  });
+});
+
+function chatCompletion(finishReason: "stop" | "length", content: string) {
+  return {
+    id: "chatcmpl_test",
+    object: "chat.completion",
+    created: 0,
+    model: "nemotron-test",
+    choices: [{ index: 0, finish_reason: finishReason, logprobs: null, message: { role: "assistant", content, refusal: null, reasoning_content: "Reasoning that is never shown." } }],
+    usage: { prompt_tokens: 10, completion_tokens: 5, total_tokens: 15 },
+  };
+}
+
+function nvidiaClient(body: unknown, captured?: { body?: Record<string, unknown> }) {
+  const client = new OpenAI({ apiKey: "test-key", fetch: stubFetch(body, captured) as typeof fetch, maxRetries: 0 });
+  return new NvidiaLLMClient({ client, model: "nemotron-test" });
+}
+
+describe("NvidiaLLMClient", () => {
+  it("parses the answer, enforces the schema with guided decoding and keeps case data in the user turn", async () => {
+    const captured: { body?: Record<string, unknown> } = {};
+    const llm = nvidiaClient(chatCompletion("stop", '{"answer":"ok","confidence":"low"}'), captured);
+    const result = await llm.generateStructured(request);
+    expect(result).toMatchObject({ data: { answer: "ok", confidence: "low" }, model: "nemotron-test", usage: { inputTokens: 10, outputTokens: 5 } });
+    const messages = captured.body?.messages as Array<{ role: string; content: string }>;
+    expect(messages[0]).toEqual({ role: "system", content: "Fixed rules." });
+    expect(messages[1]!.content).toContain("<case_record>data</case_record>");
+    expect(captured.body?.guided_json).toMatchObject({ type: "object", required: ["answer", "confidence"] });
+  });
+
+  it("reports truncation before trying to parse partial JSON", async () => {
+    const llm = nvidiaClient(chatCompletion("length", '{"answer":"cu'));
+    await expect(llm.generateStructured(request)).rejects.toThrow(/incomplete \(length\)/);
+  });
+
+  it("ignores a reasoning block left in the answer", async () => {
+    const llm = nvidiaClient(chatCompletion("stop", '<think>Checking the record.</think>\n{"answer":"ok","confidence":"high"}'));
+    expect((await llm.generateStructured(request)).data).toEqual({ answer: "ok", confidence: "high" });
+  });
+
+  it("needs a key for NVIDIA's hosted API but not for a self-hosted NIM", () => {
+    const previous = process.env.NVIDIA_API_KEY;
+    delete process.env.NVIDIA_API_KEY;
+    try {
+      expect(() => new NvidiaLLMClient()).toThrow(AIConfigurationError);
+      expect(new NvidiaLLMClient({ baseURL: "http://nim:8000/v1" }).model).toBe("nvidia/nemotron-3.5-super-vl-120b-a12b");
+    } finally {
+      if (previous) process.env.NVIDIA_API_KEY = previous;
+    }
   });
 });

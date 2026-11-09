@@ -4,6 +4,7 @@ import type { SessionUser } from "../auth/session";
 import { accessibleCaseWhere } from "../authz/case-access";
 import { can } from "../authz/permissions";
 import { listCases } from "./cases";
+import { getNextMeeting } from "./meetings";
 import { listTasksForUser } from "./tasks";
 
 function startOfTodayUtc(): Date {
@@ -15,7 +16,7 @@ export async function getDashboard(user: SessionUser) {
   const today = startOfTodayUtc();
   const inAWeek = new Date(today.getTime() + 7 * 86_400_000);
 
-  const [cases, pendingApprovals, myTasks, activity] = await Promise.all([
+  const [cases, pendingApprovals, myTasks, activity, nextMeeting] = await Promise.all([
     listCases(user),
     prisma.approval.findMany({
       where: {
@@ -48,6 +49,7 @@ export async function getDashboard(user: SessionUser) {
       orderBy: { createdAt: "desc" },
       take: 14,
     }),
+    getNextMeeting(user),
   ]);
 
   const openTasks = myTasks.filter((task) => task.status !== "DONE");
@@ -60,6 +62,7 @@ export async function getDashboard(user: SessionUser) {
     pendingApprovals,
     tasks: { open: openTasks, overdue, upcoming },
     activity,
+    nextMeeting,
     stats: {
       activeCases: activeCases.length,
       pendingApprovals: pendingApprovals.length,

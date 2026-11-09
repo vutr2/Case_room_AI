@@ -151,3 +151,9 @@ export type BriefStatus = (typeof BRIEF_STATUSES)[number];
 
 export const ACTOR_TYPES = ["USER", "AI", "SYSTEM"] as const;
 export type ActorType = (typeof ACTOR_TYPES)[number];
+
+export const MEETING_STATUSES = ["SCHEDULED", "IN_PROGRESS", "COMPLETED", "CANCELLED"] as const;
+export type MeetingStatus = (typeof MEETING_STATUSES)[number];
+
+export const AGENDA_ITEM_STATUSES = ["PENDING", "DISCUSSED", "DEFERRED"] as const;
+export type AgendaItemStatus = (typeof AGENDA_ITEM_STATUSES)[number];

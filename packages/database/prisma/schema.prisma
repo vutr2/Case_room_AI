@@ -147,6 +147,19 @@ enum InvitationStatus {
 
 // ───────────────────────────── Organization & people ─────────────────────────────
 
+enum MeetingStatus {
+  SCHEDULED
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+}
+
+enum AgendaItemStatus {
+  PENDING
+  DISCUSSED
+  DEFERRED
+}
+
 model Organization {
   id        String   @id @default(cuid())
   name      String
@@ -160,6 +173,7 @@ model Organization {
   auditEvents AuditEvent[]
   invitations Invitation[]
   aiRuns      AIRun[]
+  meetings    TumorBoardMeeting[]
 }
 
 /// A person's sign-in account. One identity can be a member of several
@@ -236,22 +250,28 @@ model User {
   identity     Identity     @relation(fields: [identityId], references: [id], onDelete: Cascade)
   organization Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
 
-  caseMemberships   CaseRoomMember[] @relation("CaseMember")
-  addedCaseMembers  CaseRoomMember[] @relation("CaseMemberAddedBy")
-  createdCaseRooms  CaseRoom[]       @relation("CaseRoomCreatedBy")
+  caseMemberships   CaseRoomMember[]       @relation("CaseMember")
+  addedCaseMembers  CaseRoomMember[]       @relation("CaseMemberAddedBy")
+  createdCaseRooms  CaseRoom[]             @relation("CaseRoomCreatedBy")
   uploadedDocuments ClinicalDocument[]
   timelineEvents    TimelineEvent[]
   messages          Message[]
   reactions         MessageReaction[]
   decisions         Decision[]
   approvals         Approval[]
-  assignedTasks     Task[]           @relation("TaskAssignee")
-  createdTasks      Task[]           @relation("TaskCreator")
-  requestedBriefs   CaseBrief[]      @relation("BriefRequestedBy")
-  editedBriefs      CaseBrief[]      @relation("BriefEditedBy")
-  approvedBriefs    CaseBrief[]      @relation("BriefApprovedBy")
+  assignedTasks     Task[]                 @relation("TaskAssignee")
+  createdTasks      Task[]                 @relation("TaskCreator")
+  requestedBriefs   CaseBrief[]            @relation("BriefRequestedBy")
+  editedBriefs      CaseBrief[]            @relation("BriefEditedBy")
+  approvedBriefs    CaseBrief[]            @relation("BriefApprovedBy")
   auditEvents       AuditEvent[]
   sentInvitations   Invitation[]
+  createdMeetings   TumorBoardMeeting[]    @relation("MeetingCreatedBy")
+  chairedMeetings   TumorBoardMeeting[]    @relation("MeetingChair")
+  recordedMeetings  TumorBoardMeeting[]    @relation("MeetingSecretary")
+  presentedItems    TumorBoardAgendaItem[] @relation("AgendaItemPresenter")
+  addedAgendaItems  TumorBoardAgendaItem[] @relation("AgendaItemAddedBy")
+  meetingAttendance TumorBoardAttendee[]
 
   @@unique([organizationId, handle])
   @@unique([organizationId, email])
@@ -324,6 +344,7 @@ model CaseRoom {
   decisions   Decision[]
   tasks       Task[]
   briefs      CaseBrief[]
+  agendaItems TumorBoardAgendaItem[]
   memory      CaseMemory?
   auditEvents AuditEvent[]
 
@@ -454,12 +475,13 @@ model Decision {
   /// Set only when every requested human reviewer has approved.
   finalizedAt     DateTime?
 
-  caseRoom      CaseRoom         @relation(fields: [caseRoomId], references: [id], onDelete: Cascade)
-  createdBy     User             @relation(fields: [createdById], references: [id])
-  sourceMessage Message?         @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
+  caseRoom      CaseRoom              @relation(fields: [caseRoomId], references: [id], onDelete: Cascade)
+  createdBy     User                  @relation(fields: [createdById], references: [id])
+  sourceMessage Message?              @relation(fields: [sourceMessageId], references: [id], onDelete: SetNull)
   sources       DecisionSource[]
   approvals     Approval[]
   tasks         Task[]
+  agendaItem    TumorBoardAgendaItem?
 
   @@unique([caseRoomId, number])
   @@index([caseRoomId, status])
@@ -552,6 +574,8 @@ model CaseBrief {
   editedBy    User?    @relation("BriefEditedBy", fields: [editedById], references: [id])
   approvedBy  User?    @relation("BriefApprovedBy", fields: [approvedById], references: [id])
 
+  agendaItems TumorBoardAgendaItem[]
+
   @@index([caseRoomId, type, createdAt])
 }
 
@@ -631,4 +655,83 @@ model AIRun {
   @@index([organizationId, createdAt])
   @@index([createdAt])
   @@index([status, heartbeatAt])
+}
+
+/// A scheduled multidisciplinary tumor board meeting of one organization.
+/// Its agenda lists case rooms; each person sees only the cases they may open.
+model TumorBoardMeeting {
+  id              String        @id @default(cuid())
+  organizationId  String
+  title           String
+  scheduledAt     DateTime
+  durationMinutes Int?
+  location        String?
+  status          MeetingStatus @default(SCHEDULED)
+  /// Chairs the meeting and signs the minutes.
+  chairId         String?
+  /// Records the minutes.
+  secretaryId     String?
+  startedAt       DateTime?
+  endedAt         DateTime?
+  createdById     String
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+
+  organization Organization           @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  chair        User?                  @relation("MeetingChair", fields: [chairId], references: [id])
+  secretary    User?                  @relation("MeetingSecretary", fields: [secretaryId], references: [id])
+  createdBy    User                   @relation("MeetingCreatedBy", fields: [createdById], references: [id])
+  agendaItems  TumorBoardAgendaItem[]
+  attendees    TumorBoardAttendee[]
+
+  @@index([organizationId, scheduledAt])
+}
+
+/// One case on a meeting's agenda, with the question for the board and the outcome.
+model TumorBoardAgendaItem {
+  id          String           @id @default(cuid())
+  meetingId   String
+  caseRoomId  String
+  /// Order on the agenda, from 1.
+  position    Int
+  presenterId String?
+  /// What the board is asked to decide.
+  question    String           @db.Text
+  status      AgendaItemStatus @default(PENDING)
+  /// Case summary for the minutes, written or confirmed by a clinician.
+  summary     String?          @db.Text
+  /// The board's conclusion, written by a clinician during or after the meeting.
+  conclusion  String?          @db.Text
+  /// Decision proposed from this outcome (still reviewed by clinicians as usual).
+  decisionId  String?          @unique
+  /// Tumor board brief shown when the case was discussed.
+  briefId     String?
+  discussedAt DateTime?
+  addedById   String
+  createdAt   DateTime         @default(now())
+  updatedAt   DateTime         @updatedAt
+
+  meeting   TumorBoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  caseRoom  CaseRoom          @relation(fields: [caseRoomId], references: [id], onDelete: Cascade)
+  presenter User?             @relation("AgendaItemPresenter", fields: [presenterId], references: [id])
+  addedBy   User              @relation("AgendaItemAddedBy", fields: [addedById], references: [id])
+  decision  Decision?         @relation(fields: [decisionId], references: [id], onDelete: SetNull)
+  brief     CaseBrief?        @relation(fields: [briefId], references: [id], onDelete: SetNull)
+
+  @@unique([meetingId, caseRoomId])
+  @@index([caseRoomId])
+}
+
+/// Who attended a meeting (listed in the minutes).
+model TumorBoardAttendee {
+  id        String   @id @default(cuid())
+  meetingId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  meeting TumorBoardMeeting @relation(fields: [meetingId], references: [id], onDelete: Cascade)
+  user    User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([meetingId, userId])
+  @@index([userId])
 }

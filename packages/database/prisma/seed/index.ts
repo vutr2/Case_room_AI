@@ -4,6 +4,7 @@ import { prisma } from "../../src/client";
 import { hashPassword } from "../../src/password";
 import { seedCase } from "./case-builder";
 import { at, audit, type SeedContext } from "./helpers";
+import { seedMeeting } from "./meetings";
 import { seedJohnCarter } from "./patients/john-carter";
 import { lindaThompson, mariaGonzalez, robertKim, samuelOkafor } from "./patients/other-cases";
 import { DEMO_PASSWORD, DEMO_USERS } from "./users";
@@ -74,13 +75,70 @@ async function main() {
   console.log("› Seeding case: Linda Thompson (closed, decision approved)");
   await seedCase(ctx, lindaThompson);
   console.log("› Seeding case: Robert Kim (decision under review, changes requested)");
-  await seedCase(ctx, robertKim);
+  const kim = await seedCase(ctx, robertKim);
   console.log("› Seeding case: Maria Gonzalez (decision approved, in treatment)");
-  await seedCase(ctx, mariaGonzalez);
+  const maria = await seedCase(ctx, mariaGonzalez);
   console.log("› Seeding case: Samuel Okafor (cardiology inpatient)");
   await seedCase(ctx, samuelOkafor);
   console.log("› Seeding case: John Carter (flagship tumor board case)");
-  await seedJohnCarter(ctx);
+  const carter = await seedJohnCarter(ctx);
+
+  console.log("› Seeding tumor board meetings");
+  await seedMeeting(ctx, {
+    title: "Breast & Gynecologic Tumor Board",
+    at: [12, "07:30"],
+    durationMinutes: 60,
+    location: "Conference Room 4B",
+    chair: "smith",
+    secretary: "rivera",
+    createdBy: "rivera",
+    created: [16, "10:00"],
+    completed: true,
+    attendees: ["nguyen", "smith", "lee", "patel", "rivera", "adams"],
+    items: [
+      {
+        caseRoomId: maria.caseRoomId,
+        presenter: "nguyen",
+        addedBy: "rivera",
+        added: [16, "10:05"],
+        question: "Neoadjuvant HER2-directed therapy or upfront surgery for cT2 cN1 HER2-positive breast cancer?",
+        outcome: {
+          discussed: [12, "08:05"],
+          linkDecision: true,
+          summary:
+            "48-year-old woman with left breast invasive ductal carcinoma, grade 2: ER 95%, PR 60%, HER2 3+, Ki-67 30%. MRI shows a cT2 tumor; the axillary node FNA is positive (cN1). ECOG 0.",
+          conclusion:
+            "Neoadjuvant TCHP for 6 cycles, then surgery (breast conservation if the response allows), with axillary management based on the clipped node. Clip the biopsied axillary node before cycle 1. Baseline echocardiogram before trastuzumab.",
+        },
+      },
+    ],
+  });
+  await seedMeeting(ctx, {
+    title: "GI & Thoracic Tumor Board",
+    at: [-2, "07:30"],
+    durationMinutes: 60,
+    location: "Conference Room 4B",
+    chair: "smith",
+    secretary: "rivera",
+    createdBy: "rivera",
+    created: [4, "14:15"],
+    items: [
+      {
+        caseRoomId: carter.caseRoomId,
+        presenter: "nguyen",
+        addedBy: "rivera",
+        added: [4, "14:16"],
+        question: "Confirm the resectability classification (borderline resectable or locally advanced) and agree on neoadjuvant chemotherapy before surgical re-evaluation.",
+      },
+      {
+        caseRoomId: kim.caseRoomId,
+        presenter: "nguyen",
+        addedBy: "rivera",
+        added: [3, "09:00"],
+        question: "EGFR/ALK results are pending: hold the neoadjuvant chemoimmunotherapy plan, or proceed toward lobectomy?",
+      },
+    ],
+  });
 
   await seedVietnameseHospital(prisma, passwordHash);
 
@@ -94,6 +152,7 @@ async function main() {
     messages: await prisma.message.count(),
     decisions: await prisma.decision.count(),
     tasks: await prisma.task.count(),
+    meetings: await prisma.tumorBoardMeeting.count(),
     auditEvents: await prisma.auditEvent.count(),
   };
   console.log("✓ Demo data ready:", counts);

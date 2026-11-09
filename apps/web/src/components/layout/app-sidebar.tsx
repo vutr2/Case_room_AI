@@ -17,6 +17,7 @@ import {
   FolderHeartIcon,
   LayoutDashboardIcon,
   LogOutIcon,
+  PresentationIcon,
   SettingsIcon,
   SparklesIcon,
   UsersIcon,
@@ -43,6 +44,7 @@ interface SidebarProps {
 const NAV: Array<{ href: string; label: MessageKey; icon: LucideIcon; count?: "openTasks" | "pendingApprovals" }> = [
   { href: "/dashboard", label: "nav.dashboard", icon: LayoutDashboardIcon, count: "pendingApprovals" as const },
   { href: "/cases", label: "nav.cases", icon: FolderHeartIcon },
+  { href: "/meetings", label: "nav.meetings", icon: PresentationIcon },
   { href: "/tasks", label: "nav.tasks", icon: CheckSquareIcon, count: "openTasks" as const },
   { href: "/team", label: "nav.team", icon: UsersIcon },
   { href: "/settings", label: "nav.settings", icon: SettingsIcon },

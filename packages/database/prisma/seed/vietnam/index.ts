@@ -1,6 +1,7 @@
 import type { PrismaClient } from "../../../src/generated/prisma/client";
 import { at, audit, type SeedContext } from "../helpers";
 import type { DemoUser } from "../users";
+import { seedMeeting } from "../meetings";
 import { seedVietnameseCase } from "./builder";
 import { dinhThiThuTrang } from "./cases/breast-her2";
 import { nguyenVanThanh } from "./cases/liver-hbv";
@@ -56,9 +57,67 @@ export async function seedVietnameseHospital(prisma: PrismaClient, passwordHash:
   }
 
   console.log("› Seeding case: Trần Thị Bích Hạnh (lung, EGFR, decision approved)");
-  await seedVietnameseCase(ctx, tranThiBichHanh);
+  const hanh = await seedVietnameseCase(ctx, tranThiBichHanh);
   console.log("› Seeding case: Đinh Thị Thu Trang (breast, HER2, changes requested)");
-  await seedVietnameseCase(ctx, dinhThiThuTrang);
+  const trang = await seedVietnameseCase(ctx, dinhThiThuTrang);
   console.log("› Seeding case: Nguyễn Văn Thành (liver, HBV, tumor board pending)");
-  await seedVietnameseCase(ctx, nguyenVanThanh);
+  const thanh = await seedVietnameseCase(ctx, nguyenVanThanh);
+
+  console.log("› Seeding tumor board meetings (Vietnamese)");
+  await seedMeeting(ctx, {
+    title: "Hội chẩn ung bướu đa chuyên khoa",
+    at: [21, "13:30"],
+    durationMinutes: 90,
+    location: "Phòng giao ban khoa Ung bướu",
+    chair: "khoa",
+    secretary: "yen",
+    createdBy: "yen",
+    created: [25, "09:00"],
+    completed: true,
+    attendees: ["khoa", "mai", "huong", "bao", "tam", "yen", "lan"],
+    items: [
+      {
+        caseRoomId: hanh.caseRoomId,
+        presenter: "khoa",
+        addedBy: "yen",
+        added: [25, "09:05"],
+        question: "Ung thư biểu mô tuyến phổi EGFR mất đoạn exon 19, giai đoạn IV, di căn não nhỏ không triệu chứng: điều trị bước một bằng osimertinib đơn thuần hay phối hợp xạ phẫu ngay?",
+        outcome: {
+          discussed: [21, "14:10"],
+          linkDecision: true,
+          summary:
+            "Bệnh nhân nữ 62 tuổi, không hút thuốc. Ung thư biểu mô tuyến phổi thùy trên phải 3,8 cm, EGFR mất đoạn exon 19, ALK và ROS1 âm tính, PD-L1 TPS 10%. Di căn não 2 ổ nhỏ (9 mm và 6 mm) không triệu chứng, tổn thương xương T8. ECOG 1.",
+          conclusion:
+            "Osimertinib 80 mg/ngày bước một. Chưa xạ phẫu di căn não; chụp MRI sọ não sau 6-8 tuần và xạ phẫu nếu tổn thương không đáp ứng. Acid zoledronic 4 mg mỗi 4 tuần sau khi khám răng miệng.",
+        },
+      },
+    ],
+  });
+  await seedMeeting(ctx, {
+    title: "Hội chẩn ung bướu đa chuyên khoa",
+    at: [-2, "13:30"],
+    durationMinutes: 90,
+    location: "Phòng giao ban khoa Ung bướu",
+    chair: "khoa",
+    secretary: "yen",
+    createdBy: "yen",
+    created: [3, "08:55"],
+    items: [
+      {
+        caseRoomId: thanh.caseRoomId,
+        presenter: "khoa",
+        addedBy: "yen",
+        added: [3, "08:56"],
+        question:
+          "HCC đơn ổ 5,2 cm hạ phân thùy VIII trên nền viêm gan B, Child-Pugh A5: cắt gan hay điều trị tại chỗ (TACE, đốt sóng cao tần)? Cần thống nhất mức độ tăng áp lực tĩnh mạch cửa trước khi xếp lịch mổ.",
+      },
+      {
+        caseRoomId: trang.caseRoomId,
+        presenter: "van",
+        addedBy: "yen",
+        added: [3, "08:58"],
+        question: "Ung thư vú trái HER2 dương tính: thống nhất hóa trị tân bổ trợ TCHP 6 chu kỳ và kế hoạch kẹp clip đánh dấu khối u, hạch nách trước chu kỳ 1.",
+      },
+    ],
+  });
 }

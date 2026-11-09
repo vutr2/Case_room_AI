@@ -7,7 +7,7 @@ import type { Translator } from "@/i18n/translate";
  * and the audit log views.
  */
 
-export type ActivityKind = "ai" | "decision" | "document" | "task" | "case" | "brief" | "message" | "auth" | "org";
+export type ActivityKind = "ai" | "decision" | "document" | "task" | "case" | "brief" | "message" | "auth" | "org" | "meeting";
 
 export interface ActivityInput {
   action: string;
@@ -150,6 +150,24 @@ export function describeActivity(event: ActivityInput, t: Translator): { text: s
       return { text: t("activity.taskStatus", { who, quoted, status: taskStatus ? lower(t(`enum.taskStatus.${taskStatus}`)) : String(m.to ?? "") }), kind: "task" };
     case "task.completed":
       return { text: t("activity.taskCompleted", { who, quoted }), kind: "task" };
+    case "meeting.created":
+      return { text: t("activity.meetingCreated", { who, quoted }), kind: "meeting" };
+    case "meeting.updated":
+      return { text: t("activity.meetingUpdated", { who, quoted }), kind: "meeting" };
+    case "meeting.started":
+      return { text: t("activity.meetingStarted", { who, quoted }), kind: "meeting" };
+    case "meeting.completed":
+      return { text: t("activity.meetingCompleted", { who, quoted }), kind: "meeting" };
+    case "meeting.cancelled":
+      return { text: t("activity.meetingCancelled", { who, quoted }), kind: "meeting" };
+    case "meeting.attendance_updated":
+      return { text: t("activity.meetingAttendance", { who, quoted }), kind: "meeting" };
+    case "meeting.case_added":
+      return { text: t("activity.meetingCaseAdded", { who, quoted }), kind: "meeting" };
+    case "meeting.case_removed":
+      return { text: t("activity.meetingCaseRemoved", { who, quoted }), kind: "meeting" };
+    case "meeting.outcome_recorded":
+      return { text: m.status === "DEFERRED" ? t("activity.meetingDeferred", { who, quoted }) : t("activity.meetingDiscussed", { who, quoted }), kind: "meeting" };
     default:
       return { text: t("activity.fallback", { who, action: event.action }), kind: event.actorType === "AI" ? "ai" : "case" };
   }

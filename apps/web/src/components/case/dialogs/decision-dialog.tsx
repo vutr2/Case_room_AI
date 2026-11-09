@@ -24,6 +24,8 @@ export interface DecisionPrefill {
   sourceDocumentIds?: string[];
   reviewerIds?: string[];
   sourceMessageId?: string | null;
+  /** Tumor board agenda item whose outcome the decision records; the dialog then stays on the current page. */
+  agendaItemId?: string | null;
 }
 
 const CLINICAL_ROLES = new Set(["DOCTOR", "SPECIALIST"]);
@@ -78,7 +80,7 @@ export function DecisionDialog({
       const fields = { title, description, rationale, sourceDocumentIds: [...sources], reviewerIds: [...reviewers] };
       const result =
         mode === "create"
-          ? await createDecisionAction(caseId, { ...fields, sourceMessageId: prefill?.sourceMessageId ?? null })
+          ? await createDecisionAction(caseId, { ...fields, sourceMessageId: prefill?.sourceMessageId ?? null, agendaItemId: prefill?.agendaItemId ?? null })
           : await reviseDecisionAction(caseId, decisionId!, { ...fields, expectedRevision: editedRevision });
       if (!result.ok) {
         setError(result.error);
@@ -86,7 +88,7 @@ export function DecisionDialog({
       }
       toast.success(mode === "create" ? t("decisionDialog.proposed") : t("decisionDialog.revised"));
       onOpenChange(false);
-      if (mode === "create") router.push(`/cases/${caseId}/decisions`);
+      if (mode === "create" && !prefill?.agendaItemId) router.push(`/cases/${caseId}/decisions`);
       else router.refresh();
     });
   }

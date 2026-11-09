@@ -8,6 +8,7 @@ import {
   FolderHeartIcon,
   KeyRoundIcon,
   MessageSquareIcon,
+  PresentationIcon,
   ScaleIcon,
   SparklesIcon,
 } from "lucide-react";
@@ -26,6 +27,7 @@ const KIND_STYLE: Record<ActivityKind, { icon: typeof SparklesIcon; className: s
   message: { icon: MessageSquareIcon, className: "bg-slate-100 text-slate-600" },
   auth: { icon: KeyRoundIcon, className: "bg-slate-100 text-slate-500" },
   org: { icon: BuildingIcon, className: "bg-slate-100 text-slate-600" },
+  meeting: { icon: PresentationIcon, className: "bg-primary/10 text-primary" },
 };
 
 export interface ActivityItem {

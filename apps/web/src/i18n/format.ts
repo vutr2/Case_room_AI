@@ -26,8 +26,8 @@ export function createFormat(t: Translator, organizationLocale?: Locale) {
     return date(value, { year: false });
   }
 
-  function dateTime(value: DateInput): string {
-    return toDate(value).toLocaleString(tag, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+  function dateTime(value: DateInput, options: { year?: boolean } = {}): string {
+    return toDate(value).toLocaleString(tag, { month: "short", day: "numeric", ...(options.year ? { year: "numeric" } : {}), hour: "numeric", minute: "2-digit" });
   }
 
   function time(value: DateInput): string {

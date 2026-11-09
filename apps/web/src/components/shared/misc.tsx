@@ -30,13 +30,13 @@ export function TimeAgo({ date, className }: { date: string | Date; className?: 
 }
 
 /** Absolute local date-time. */
-export function LocalDateTime({ date, className }: { date: string | Date; className?: string }) {
+export function LocalDateTime({ date, className, withYear = false }: { date: string | Date; className?: string; withYear?: boolean }) {
   const { fmt } = useI18n();
   const iso = typeof date === "string" ? date : date.toISOString();
   const client = useSyncExternalStore(subscribeNever, onClient, serverSnapshot);
   return (
     <time dateTime={iso} className={className} suppressHydrationWarning>
-      {client ? fmt.dateTime(iso) : " "}
+      {client ? fmt.dateTime(iso, { year: withYear }) : " "}
     </time>
   );
 }

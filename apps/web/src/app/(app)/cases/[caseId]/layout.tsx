@@ -11,8 +11,10 @@ import { ageFromDob } from "@/lib/format";
 import { requireUser } from "@/server/auth/session";
 import { findAccessibleCase, requireCaseForPage } from "@/server/authz/case-access";
 import { can } from "@/server/authz/permissions";
+import { casePermissions } from "@/server/case-permissions";
 import { getAIProviderInfo } from "@/server/services/ai";
 import { getCaseRoomOverview, listOrganizationMembers } from "@/server/services/cases";
+import { getUpcomingMeetingForCase } from "@/server/services/meetings";
 
 export async function generateMetadata({ params }: { params: Promise<{ caseId: string }> }): Promise<Metadata> {
   const { caseId } = await params;
@@ -28,7 +30,7 @@ export default async function CaseLayout({ children, params }: { children: React
   const user = await requireUser();
   await requireCaseForPage(user, caseId);
 
-  const [room, documents, organizationMembers, pendingReviews, myTasks, messageCount, decisionCount] = await Promise.all([
+  const [room, documents, organizationMembers, pendingReviews, myTasks, messageCount, decisionCount, upcomingMeeting] = await Promise.all([
     getCaseRoomOverview(user, caseId),
     prisma.clinicalDocument.findMany({
       where: { caseRoomId: caseId },
@@ -48,6 +50,7 @@ export default async function CaseLayout({ children, params }: { children: React
     }),
     prisma.message.count({ where: { caseRoomId: caseId, type: { not: "SYSTEM" } } }),
     prisma.decision.count({ where: { caseRoomId: caseId } }),
+    getUpcomingMeetingForCase(user, caseId),
   ]);
   const ai = getAIProviderInfo();
   const patient = room.patient;
@@ -58,20 +61,7 @@ export default async function CaseLayout({ children, params }: { children: React
     caseTitle: room.title,
     patientName: fmt.patientName(patient),
     currentUser: { id: user.id, name: user.name, role: user.role },
-    permissions: {
-      manageCase: can(user, "case.manage"),
-      uploadDocument: can(user, "document.upload"),
-      editTimeline: can(user, "timeline.edit"),
-      postMessage: can(user, "message.post"),
-      askAI: can(user, "ai.ask"),
-      generateBrief: can(user, "brief.generate"),
-      approveBrief: can(user, "brief.approve"),
-      generateHandoff: can(user, "handoff.generate"),
-      approveHandoff: can(user, "handoff.approve"),
-      createDecision: can(user, "decision.create"),
-      reviewDecision: can(user, "decision.review"),
-      manageTasks: can(user, "task.manage"),
-    },
+    permissions: casePermissions(user),
     members: room.members.map((m) => m.user),
     documents: documents.map((d) => ({ id: d.id, title: d.title, type: d.type, date: toIsoDate(d.documentDate) })),
     organizationMembers,
@@ -116,6 +106,7 @@ export default async function CaseLayout({ children, params }: { children: React
               updatedAt={room.updatedAt}
               pendingReviews={pendingReviews.map((p) => ({ decisionId: p.decision.id, number: p.decision.number, title: p.decision.title }))}
               myTasks={myTasks}
+              upcomingMeeting={upcomingMeeting}
               ai={{
                 label: ai.label,
                 model: ai.model,

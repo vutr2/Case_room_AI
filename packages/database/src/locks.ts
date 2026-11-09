@@ -6,10 +6,10 @@ import { Prisma } from "./generated/prisma/client";
  * sign-off, org roles, invitations, memberships of one person).
  *
  * Lock order, to stay deadlock-free: Identity → Organization → Invitation, and
- * CaseRoom → Decision / CaseBrief. Never take a lock earlier in its chain
- * after a later one in the same transaction.
+ * TumorBoardMeeting → CaseRoom → Decision / CaseBrief. Never take a lock
+ * earlier in its chain after a later one in the same transaction.
  */
-export type LockableTable = "Identity" | "CaseRoom" | "Decision" | "CaseBrief" | "Organization" | "Invitation";
+export type LockableTable = "Identity" | "CaseRoom" | "Decision" | "CaseBrief" | "Organization" | "Invitation" | "TumorBoardMeeting";
 
 /**
  * Take a row lock held until the transaction ends. Concurrent transactions that

@@ -37,6 +37,7 @@ Dr. Smith clicks **Approve**, adds a comment, confirms. Window A updates live: *
 
 ## Optional extras
 
+- **Tumor boards** (sidebar) → *GI & Thoracic Tumor Board* (in 2 days): the agenda with John Carter and Robert Kim, the question for the board and whether each tumor board brief is ready. *Prepare with AI* drafts the missing briefs. *Start meeting* → *Present*: one case at a time (← and → switch cases); write the conclusion, *Save as discussed*, then *Propose decision* (the reviewers approve it as usual). *End meeting* → *Minutes*: one printable page per case with attendance, chair and secretary. The past *Breast & Gynecologic Tumor Board* shows finished minutes; the Vietnamese hospital (`khoa@benhvien.demo`) has the same in Vietnamese.
 - **Tumor Board** tab → *Prepare tumor board*: a full brief with *Questions for tumor board*; edit a section, then *Approve & share*.
 - Sign in as **Rachel Adams (nurse)** → *Handoff* → *Generate new handoff*: changes since last shift (hemoglobin trend), pending results, risks and next actions; the nurse approves it.
 - **Upload document** → *Paste text* with a new report: the timeline and memory update automatically.

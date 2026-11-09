@@ -23,6 +23,7 @@ export const PERMISSIONS = [
   "decision.create",
   "decision.review", // approve / reject / request changes
   "task.manage",
+  "meeting.manage", // schedule tumor board meetings, run the agenda, record outcomes
 ] as const;
 
 export type Permission = (typeof PERMISSIONS)[number];
@@ -41,6 +42,7 @@ const CLINICIAN: Permission[] = [
   "decision.create",
   "decision.review",
   "task.manage",
+  "meeting.manage",
 ];
 
 export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
@@ -56,11 +58,12 @@ export const ROLE_PERMISSIONS: Record<UserRole, readonly Permission[]> = {
     "brief.generate",
     "handoff.generate",
     "task.manage",
+    "meeting.manage",
   ],
   DOCTOR: CLINICIAN,
   SPECIALIST: CLINICIAN,
   NURSE: ["document.upload", "timeline.edit", "message.post", "ai.ask", "handoff.generate", "handoff.approve", "task.manage"],
-  CARE_COORDINATOR: ["case.create", "case.manage", "document.upload", "message.post", "ai.ask", "handoff.generate", "task.manage"],
+  CARE_COORDINATOR: ["case.create", "case.manage", "document.upload", "message.post", "ai.ask", "handoff.generate", "task.manage", "meeting.manage"],
 };
 
 export function can(user: { role: UserRole }, permission: Permission): boolean {

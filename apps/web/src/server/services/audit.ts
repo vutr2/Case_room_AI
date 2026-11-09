@@ -48,7 +48,16 @@ export type AuditAction =
   | "ai.tasks_suggested"
   | "task.created"
   | "task.status_changed"
-  | "task.completed";
+  | "task.completed"
+  | "meeting.created"
+  | "meeting.updated"
+  | "meeting.started"
+  | "meeting.completed"
+  | "meeting.cancelled"
+  | "meeting.attendance_updated"
+  | "meeting.case_added"
+  | "meeting.case_removed"
+  | "meeting.outcome_recorded";
 
 export interface AuditInput {
   organizationId: string;

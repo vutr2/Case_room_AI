@@ -1,6 +1,6 @@
 import { Button } from "@ccr/ui/components/button";
 import { Card, CardAction, CardContent, CardDescription, CardHeader, CardTitle } from "@ccr/ui/components/card";
-import { AlarmClockIcon, CheckSquareIcon, FolderHeartIcon, PlusIcon, ScaleIcon } from "lucide-react";
+import { AlarmClockIcon, CheckSquareIcon, FolderHeartIcon, PlusIcon, PresentationIcon, ScaleIcon } from "lucide-react";
 import type { Metadata } from "next";
 import Link from "next/link";
 import { ActivityFeed } from "@/components/activity/activity-feed";
@@ -9,7 +9,7 @@ import { TaskTabs } from "@/components/dashboard/task-tabs";
 import { PageContainer } from "@/components/layout/page-header";
 import { DecisionStatusBadge } from "@/components/shared/badges";
 import { EmptyState } from "@/components/shared/empty-state";
-import { TimeAgo } from "@/components/shared/misc";
+import { LocalDateTime, TimeAgo } from "@/components/shared/misc";
 import { TaskRow } from "@/components/tasks/task-row";
 import { INTL_LOCALE } from "@/i18n/config";
 import { rich } from "@/i18n/rich";
@@ -152,6 +152,40 @@ export default async function DashboardPage() {
         </div>
 
         <div className="space-y-6">
+          {data.nextMeeting && (
+            <Card>
+              <CardHeader className="pb-2">
+                <CardTitle className="flex items-center gap-2">
+                  <PresentationIcon className="size-4 text-primary" />
+                  {t("dashboard.nextMeeting")}
+                </CardTitle>
+                <CardAction>
+                  <Link href="/meetings" className="text-[13px] font-medium text-primary hover:underline">
+                    {t("dashboard.allMeetings")}
+                  </Link>
+                </CardAction>
+              </CardHeader>
+              <CardContent className="space-y-2">
+                <Link href={`/meetings/${data.nextMeeting.id}`} className="block space-y-0.5 hover:underline">
+                  <div className="text-[14px] font-semibold">{data.nextMeeting.title}</div>
+                  <div className="text-[13px] text-muted-foreground">
+                    <LocalDateTime date={data.nextMeeting.scheduledAt} />
+                    {data.nextMeeting.location ? ` · ${data.nextMeeting.location}` : ""}
+                  </div>
+                </Link>
+                <ul className="space-y-1 text-[13px]">
+                  {data.nextMeeting.agendaItems.map((item) => (
+                    <li key={item.id}>
+                      <Link href={`/cases/${item.caseRoom.id}`} className="hover:underline">
+                        {fmt.patientName(item.caseRoom.patient)}
+                      </Link>
+                      <span className="text-muted-foreground"> · {item.caseRoom.title}</span>
+                    </li>
+                  ))}
+                </ul>
+              </CardContent>
+            </Card>
+          )}
           <Card className="overflow-hidden">
             <CardHeader className="pb-2">
               <CardTitle>{t("nav.tasks")}</CardTitle>

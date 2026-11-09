@@ -12,6 +12,7 @@ import { realtime } from "../realtime/bus";
 import { buildCaseContext, getAIProvider } from "./ai";
 import { withAIRun } from "./ai-quota";
 import { recordAudit } from "./audit";
+import { linkDecisionToAgendaItem } from "./meetings";
 import { postSystemMessage, touchCaseRoom } from "./system-messages";
 
 /** System message key for each review verdict (see reviewAction). */
@@ -24,6 +25,8 @@ export const decisionInputSchema = z.object({
   sourceDocumentIds: z.array(z.string()).max(20).default([]),
   reviewerIds: z.array(z.string()).min(1, "Select at least one reviewer; decisions require human approval.").max(12),
   sourceMessageId: z.string().nullable().optional(),
+  /** Tumor board agenda item whose outcome this decision records. */
+  agendaItemId: z.string().nullable().optional(),
 });
 export type DecisionInput = z.input<typeof decisionInputSchema>;
 
@@ -107,6 +110,9 @@ export async function createDecision(user: SessionUser, caseRoomId: string, raw:
         approvals: { create: reviewers.map((reviewer) => ({ userId: reviewer.id, status: "PENDING" as const })) },
       },
     });
+    if (input.agendaItemId) {
+      await linkDecisionToAgendaItem(tx, user, { agendaItemId: input.agendaItemId, caseRoomId, decisionId: decision.id });
+    }
     await tx.timelineEvent.create({
       data: {
         caseRoomId,
@@ -132,7 +138,7 @@ export async function createDecision(user: SessionUser, caseRoomId: string, raw:
       action: "decision.proposed",
       resourceType: "Decision",
       resourceId: decision.id,
-      metadata: { number, revision: decision.revision, title: input.title, reviewers: reviewers.map((r) => r.name) },
+      metadata: { number, revision: decision.revision, title: input.title, reviewers: reviewers.map((r) => r.name), fromMeeting: Boolean(input.agendaItemId) },
     });
     await touchCaseRoom(tx, caseRoomId);
     return decision;
@@ -256,7 +262,7 @@ export async function reviewDecision(user: SessionUser, decisionId: string, raw:
   return { status: nextStatus };
 }
 
-export const reviseSchema = decisionInputSchema.omit({ reviewerIds: true, sourceMessageId: true }).extend({
+export const reviseSchema = decisionInputSchema.omit({ reviewerIds: true, sourceMessageId: true, agendaItemId: true }).extend({
   reviewerIds: z.array(z.string()).max(12).optional(),
   /** The revision the proposer edited; a concurrent review or revision makes it stale. */
   expectedRevision: z.number().int().positive(),

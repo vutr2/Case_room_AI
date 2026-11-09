@@ -1,10 +1,10 @@
 import type { CaseSpecialty } from "@ccr/types";
-import { BrainCircuitIcon, CheckSquareIcon, ScaleIcon, ShieldCheckIcon } from "lucide-react";
+import { BrainCircuitIcon, CheckSquareIcon, PresentationIcon, ScaleIcon, ShieldCheckIcon } from "lucide-react";
 import Link from "next/link";
 import { rich } from "@/i18n/rich";
 import { getI18n } from "@/i18n/server";
 import { DueChip } from "../tasks/task-row";
-import { TimeAgo } from "../shared/misc";
+import { LocalDateTime, TimeAgo } from "../shared/misc";
 import { AIActivityIndicator, CareTeamPanel } from "./right-rail-live";
 
 export interface RightRailProps {
@@ -15,6 +15,8 @@ export interface RightRailProps {
   updatedAt: Date;
   pendingReviews: Array<{ decisionId: string; number: number; title: string }>;
   myTasks: Array<{ id: string; title: string; dueDate: Date | null; status: string }>;
+  /** The upcoming tumor board meeting this case is on, if any. */
+  upcomingMeeting?: { id: string; title: string; scheduledAt: Date } | null;
   ai: {
     label: string;
     model: string;
@@ -57,6 +59,22 @@ export async function CaseRightRail(props: RightRailProps) {
           </dd>
         </dl>
       </RailSection>
+
+      {props.upcomingMeeting && (
+        <Link
+          href={`/meetings/${props.upcomingMeeting.id}`}
+          className="flex items-start gap-2 rounded-lg border border-primary/30 bg-primary/5 px-3 py-2.5 text-[12.5px] hover:bg-primary/10"
+        >
+          <PresentationIcon className="mt-0.5 size-4 shrink-0 text-primary" />
+          <span className="min-w-0">
+            <span className="block font-semibold text-primary">{t("rail.tumorBoard")}</span>
+            <span className="block">
+              <LocalDateTime date={props.upcomingMeeting.scheduledAt} />
+            </span>
+            <span className="block truncate text-muted-foreground">{props.upcomingMeeting.title}</span>
+          </span>
+        </Link>
+      )}
 
       <CareTeamPanel />
 

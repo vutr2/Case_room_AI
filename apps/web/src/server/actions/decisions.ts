@@ -22,6 +22,7 @@ export async function createDecisionAction(caseRoomId: string, input: DecisionIn
     const decision = await createDecision(user, caseRoomId, input);
     revalidatePath(`/cases/${caseRoomId}`, "layout");
     revalidatePath("/dashboard");
+    if (input.agendaItemId) revalidatePath("/meetings", "layout");
     return { id: decision.id, number: decision.number };
   });
 }

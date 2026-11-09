@@ -81,7 +81,7 @@ export async function AuditTable({ rows, showCase = false }: { rows: AuditRow[];
                   <td className="px-3 py-2.5 whitespace-nowrap">
                     {row.caseRoom ? (
                       <Link href={`/cases/${row.caseRoom.id}/audit`} className="hover:text-primary hover:underline">
-                        {row.caseRoom.patient.firstName} {row.caseRoom.patient.lastName}
+                        {fmt.patientName(row.caseRoom.patient)}
                       </Link>
                     ) : (
                       <span className="text-muted-foreground">{t("audit.organization")}</span>

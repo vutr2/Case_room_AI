@@ -4,7 +4,7 @@ import { cache } from "react";
 import { getSessionUser } from "@/server/auth/session";
 import { DEFAULT_LOCALE, isLocale, LOCALE_COOKIE, localeFromAcceptLanguage, type Locale } from "./config";
 import { translateServerMessage } from "./server-messages";
-import { i18nFor } from "./translator-for";
+import { i18nFor, organizationLocale } from "./translator-for";
 
 export { caseTextFor, i18nFor, MESSAGES, organizationLocale } from "./translator-for";
 
@@ -21,7 +21,10 @@ export const getLocale = cache(async (): Promise<Locale> => {
 });
 
 /** Translator and formatters in the language of this request (server components, actions). */
-export const getI18n = cache(async () => i18nFor(await getLocale()));
+export const getI18n = cache(async () => {
+  const user = await getSessionUser();
+  return i18nFor(await getLocale(), user ? organizationLocale(user.organizationLocale) : undefined);
+});
 
 /**
  * A user-facing message from the server (written in English by the services)

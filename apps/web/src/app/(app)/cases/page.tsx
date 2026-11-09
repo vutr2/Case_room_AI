@@ -23,7 +23,7 @@ export async function generateMetadata(): Promise<Metadata> {
 
 export default async function CasesPage({ searchParams }: { searchParams: Promise<{ status?: string; q?: string }> }) {
   const user = await requireUser();
-  const { t } = await getI18n();
+  const { t, fmt } = await getI18n();
   const { status: rawStatus, q } = await searchParams;
   const status = CASE_STATUSES.includes(rawStatus as CaseStatus) ? (rawStatus as CaseStatus) : undefined;
   const [cases, all] = await Promise.all([listCases(user, { status, query: q }), listCases(user)]);
@@ -96,7 +96,7 @@ export default async function CasesPage({ searchParams }: { searchParams: Promis
                   <td className="px-4 py-3">
                     <Link href={`/cases/${room.id}`} className="block">
                       <div className="font-semibold group-hover:text-primary">
-                        {room.patient.firstName} {room.patient.lastName}
+                        {fmt.patientName(room.patient)}
                       </div>
                       <div className="text-xs text-muted-foreground">
                         {t("patient.ageSexMrn", {

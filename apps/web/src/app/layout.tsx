@@ -24,11 +24,11 @@ export const viewport: Viewport = {
 };
 
 export default async function RootLayout({ children }: Readonly<{ children: React.ReactNode }>) {
-  const { locale } = await getI18n();
+  const { locale, organizationLocale } = await getI18n();
   return (
     <html lang={locale} className={`${inter.variable} ${mono.variable}`}>
       <body className="min-h-dvh font-sans text-sm">
-        <I18nProvider locale={locale} messages={MESSAGES[locale]}>
+        <I18nProvider locale={locale} organizationLocale={organizationLocale} messages={MESSAGES[locale]}>
           <TooltipProvider>
             {children}
             <Toaster />

@@ -39,7 +39,7 @@ export interface ActivityItem {
 }
 
 export async function ActivityFeed({ items, showCase = true, compact = false }: { items: ActivityItem[]; showCase?: boolean; compact?: boolean }) {
-  const { t } = await getI18n();
+  const { t, fmt } = await getI18n();
   return (
     <ol className="relative space-y-0">
       {items.map((item, index) => {
@@ -62,7 +62,7 @@ export async function ActivityFeed({ items, showCase = true, compact = false }: 
                   <>
                     <span>·</span>
                     <Link href={`/cases/${item.caseRoom.id}`} className="truncate hover:text-primary hover:underline">
-                      {item.caseRoom.patient.firstName} {item.caseRoom.patient.lastName}
+                      {fmt.patientName(item.caseRoom.patient)}
                     </Link>
                   </>
                 )}

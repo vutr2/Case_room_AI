@@ -23,7 +23,15 @@ interface DemoAccount {
   role: UserRole;
 }
 
-export function LoginForm({ callbackUrl, demoAccounts }: { callbackUrl: string; demoAccounts: DemoAccount[] }) {
+/** A synthetic demo organization and its clinicians; `language` is the organization's language, in its own words. */
+export interface DemoTeam {
+  id: string;
+  name: string;
+  language: string;
+  accounts: DemoAccount[];
+}
+
+export function LoginForm({ callbackUrl, demoTeams }: { callbackUrl: string; demoTeams: DemoTeam[] }) {
   const [state, formAction, pending] = useActionState<FormState, FormData>(loginAction, { error: null });
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
@@ -84,35 +92,42 @@ export function LoginForm({ callbackUrl, demoAccounts }: { callbackUrl: string; 
         </p>
       </form>
 
-      {demoAccounts.length > 0 && (
+      {demoTeams.length > 0 && (
         <div className="space-y-3">
           <div className="flex items-center gap-3 text-[11px] font-semibold tracking-wider text-muted-foreground uppercase">
             <span className="h-px flex-1 bg-border" />
             {t("login.demoTeam", { password: DEMO_PASSWORD })}
             <span className="h-px flex-1 bg-border" />
           </div>
-          <div className="grid gap-1.5 sm:grid-cols-2">
-            {demoAccounts.map((account) => (
-              <button
-                key={account.id}
-                type="button"
-                disabled={pending}
-                onClick={() => signInAs(account)}
-                className="group flex cursor-pointer items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent disabled:opacity-60"
-              >
-                <UserAvatar user={account} size="md" />
-                <div className="min-w-0 flex-1 leading-tight">
-                  <div className="truncate text-[13px] font-medium">{account.name}</div>
-                  <div className="truncate text-[11px] text-muted-foreground">{account.title ?? t(`enum.role.${account.role}`)}</div>
-                </div>
-                {pending && selected === account.id ? (
-                  <Spinner className="size-3.5 text-muted-foreground" />
-                ) : (
-                  <ArrowRightIcon className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
-                )}
-              </button>
-            ))}
-          </div>
+          {demoTeams.map((team) => (
+            <section key={team.id} aria-label={team.name} className="space-y-1.5">
+              <h3 className="text-[12px] font-medium text-muted-foreground">
+                {team.name} · {team.language}
+              </h3>
+              <div className="grid gap-1.5 sm:grid-cols-2">
+                {team.accounts.map((account) => (
+                  <button
+                    key={account.id}
+                    type="button"
+                    disabled={pending}
+                    onClick={() => signInAs(account)}
+                    className="group flex cursor-pointer items-center gap-2.5 rounded-lg border bg-card px-2.5 py-2 text-left transition-colors hover:border-primary/40 hover:bg-accent disabled:opacity-60"
+                  >
+                    <UserAvatar user={account} size="md" />
+                    <div className="min-w-0 flex-1 leading-tight">
+                      <div className="truncate text-[13px] font-medium">{account.name}</div>
+                      <div className="truncate text-[11px] text-muted-foreground">{account.title ?? t(`enum.role.${account.role}`)}</div>
+                    </div>
+                    {pending && selected === account.id ? (
+                      <Spinner className="size-3.5 text-muted-foreground" />
+                    ) : (
+                      <ArrowRightIcon className="size-3.5 text-muted-foreground opacity-0 transition-opacity group-hover:opacity-100" />
+                    )}
+                  </button>
+                ))}
+              </div>
+            </section>
+          ))}
           <p className="text-[11.5px] leading-relaxed text-muted-foreground">{t("login.tip")}</p>
         </div>
       )}

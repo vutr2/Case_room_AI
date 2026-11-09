@@ -15,11 +15,22 @@ interface I18n {
 const I18nContext = createContext<I18n | null>(null);
 
 /** Set once in the root layout with the request's language; client components read it with useI18n(). */
-export function I18nProvider({ locale, messages, children }: { locale: Locale; messages: Messages; children: React.ReactNode }) {
+export function I18nProvider({
+  locale,
+  organizationLocale,
+  messages,
+  children,
+}: {
+  locale: Locale;
+  /** The signed-in organization's language, for the order of patient names. */
+  organizationLocale?: Locale;
+  messages: Messages;
+  children: React.ReactNode;
+}) {
   const value = useMemo(() => {
     const t = makeTranslator(messages, locale);
-    return { locale, t, fmt: createFormat(t) };
-  }, [locale, messages]);
+    return { locale, t, fmt: createFormat(t, organizationLocale) };
+  }, [locale, organizationLocale, messages]);
   return <I18nContext.Provider value={value}>{children}</I18nContext.Provider>;
 }
 

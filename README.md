@@ -22,7 +22,7 @@ Clinical Case Room is open source under the [GNU AGPL-3.0](LICENSE). Contributio
 | **Human in the loop** | Decisions need approval from every requested reviewer; briefs and handoffs are drafts until a clinician approves them. |
 | **Auditability** | Every upload, AI action, decision, approval and task change is recorded in an append-only audit log. |
 | **Organizations and accounts** | One account in several organizations, roles per organization, emailed invitations, signup confirmed by email, password reset and change (ends other sessions), and deactivating members without losing their history. |
-| **English and Vietnamese** | Each person picks their interface language (sign-in page or user menu). Each organization has a language (Settings) that AI drafts, the text the system writes into cases and invitation emails use. |
+| **English and Vietnamese** | Each person picks their interface language (sign-in page or user menu). Each organization has a language (Settings) that AI drafts, the text the system writes into cases and invitation emails use; patient names follow it too (family name first in Vietnamese). A Vietnamese demo hospital comes with the demo data. |
 
 | Team discussion with evidence-grounded AI | Human approval of a proposed decision |
 |---|---|
@@ -57,6 +57,8 @@ Sign in with any demo account (password `demo1234`), or click one on the sign-in
 | `admin@lakeside.demo` | Admin of the second demo organization | See that cases, members and audit logs stay separate per organization |
 
 One account can belong to several organizations, with a different role in each. The organization menu at the top of the sidebar switches between them and creates new ones.
+
+A third demo organization, **Bệnh viện Đa khoa Sông Xanh (Demo)**, works in Vietnamese: its staff sign in with `@benhvien.demo` addresses and get the interface, the case records and the AI drafts in Vietnamese. Its three oncology cases (hepatocellular carcinoma on hepatitis B, EGFR-mutant lung adenocarcinoma, HER2-positive breast cancer) carry pre-written Vietnamese AI content, because the offline demo engine reads English only. Start with `khoa@benhvien.demo` (medical oncologist); the sign-in page lists the whole team. The clinical content is synthetic and has not been reviewed by a Vietnamese clinician.
 
 For a live multiplayer demo, open a second browser profile (or a private window), sign in as another clinician and open the same case. The full 5-minute walkthrough is in [docs/DEMO_SCRIPT.md](docs/DEMO_SCRIPT.md).
 

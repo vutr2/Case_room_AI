@@ -33,7 +33,7 @@ export default async function DashboardPage() {
   const user = await requireUser();
   const data = await getDashboard(user);
   const canCreate = can(user, "case.create");
-  const { t, locale } = await getI18n();
+  const { t, fmt, locale } = await getI18n();
 
   const stats = [
     { label: t("dashboard.activeCases"), value: data.stats.activeCases, icon: FolderHeartIcon, tone: "text-primary bg-primary/10" },
@@ -133,7 +133,7 @@ export default async function DashboardPage() {
                       <div className="text-xs text-muted-foreground">
                         {rich(
                           t("dashboard.pending.meta", {
-                            patient: `${decision.caseRoom.patient.firstName} ${decision.caseRoom.patient.lastName}`,
+                            patient: fmt.patientName(decision.caseRoom.patient),
                             name: shortName(decision.createdBy.name),
                             approvals: t("dashboard.pending.approvals", { approved, total: decision.approvals.length }),
                           }),

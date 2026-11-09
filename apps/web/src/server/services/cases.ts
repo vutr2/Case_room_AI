@@ -3,7 +3,9 @@ import { randomInt } from "node:crypto";
 import { prisma } from "@ccr/database";
 import type { CaseSpecialty, CaseStatus, PatientSex } from "@ccr/types";
 import { z } from "zod";
-import { caseTextFor } from "@/i18n/translator-for";
+import { FAMILY_NAME_FIRST } from "@/i18n/config";
+import { caseTextFor, organizationLocale } from "@/i18n/translator-for";
+import { patientName } from "@/lib/format";
 import type { SessionUser } from "../auth/session";
 import { accessibleCaseWhere, assertCaseAccess } from "../authz/case-access";
 import { assertFormOrganization } from "../authz/organization-context";
@@ -160,7 +162,7 @@ export async function createCase(user: SessionUser, rawInput: CreateCaseInput) {
       action: "case.created",
       resourceType: "CaseRoom",
       resourceId: room.id,
-      metadata: { title: room.title, patient: `${patient.firstName} ${patient.lastName}`, mrn },
+      metadata: { title: room.title, patient: patientName(patient, FAMILY_NAME_FIRST[organizationLocale(user.organizationLocale)]), mrn },
     });
     for (const member of members.filter((m) => m.id !== user.id)) {
       await recordAudit(tx, {

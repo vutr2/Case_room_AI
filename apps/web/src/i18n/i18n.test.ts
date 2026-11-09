@@ -29,6 +29,16 @@ describe("translator", () => {
   });
 });
 
+describe("patient names", () => {
+  it("follow the organization's language, whatever the interface language", () => {
+    const thanh = { firstName: "Văn Thành", lastName: "Nguyễn" };
+    expect(createFormat(tEn, "vi").patientName(thanh)).toBe("Nguyễn Văn Thành");
+    expect(createFormat(tVi, "en").patientName({ firstName: "Maria", lastName: "Gonzalez" })).toBe("Maria Gonzalez");
+    // Signed out (no organization): the interface language decides.
+    expect(createFormat(tVi).patientName(thanh)).toBe("Nguyễn Văn Thành");
+  });
+});
+
 describe("language choice", () => {
   it("picks the first supported language from Accept-Language, by quality", () => {
     expect(localeFromAcceptLanguage("vi-VN,vi;q=0.9,en-US;q=0.8")).toBe("vi");

@@ -1,15 +1,16 @@
-import { daysFromToday, toDate, type DateInput } from "@/lib/format";
-import { INTL_LOCALE } from "./config";
+import { daysFromToday, patientName, toDate, type DateInput } from "@/lib/format";
+import { FAMILY_NAME_FIRST, INTL_LOCALE, type Locale } from "./config";
 import type { Translator } from "./translate";
 
 export type DueTone = "overdue" | "today" | "soon" | "later";
 
 /**
- * Date formatting in the interface language, on server and client.
+ * Dates in the interface language, and patient names in the order of the
+ * organization's language (family name first in Vietnamese), on server and client.
  * Clinical dates (DOB, document date, due date) are date-only values stored at
  * UTC midnight, so they are always formatted in UTC to avoid off-by-one days.
  */
-export function createFormat(t: Translator) {
+export function createFormat(t: Translator, organizationLocale?: Locale) {
   const tag = INTL_LOCALE[t.locale];
 
   function date(value: DateInput, options: { year?: boolean } = {}): string {
@@ -57,7 +58,11 @@ export function createFormat(t: Translator) {
     return { text: t("due.on", { date: shortDate(value) }), tone: "later" };
   }
 
-  return { date, shortDate, dateTime, time, relative, due };
+  function patient(value: { firstName: string; lastName: string }): string {
+    return patientName(value, FAMILY_NAME_FIRST[organizationLocale ?? t.locale]);
+  }
+
+  return { date, shortDate, dateTime, time, relative, due, patientName: patient };
 }
 
 export type Format = ReturnType<typeof createFormat>;

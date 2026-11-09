@@ -10,6 +10,9 @@ export const LOCALE_COOKIE = "ccr-locale";
 /** Each language in its own words, for the language switcher. */
 export const LOCALE_NAMES: Record<Locale, string> = { en: "English", vi: "Tiếng Việt" };
 
+/** Patient names in an organization of this language are written family name first ("Nguyễn Văn Thành"). */
+export const FAMILY_NAME_FIRST: Record<Locale, boolean> = { en: false, vi: true };
+
 /** BCP 47 tags for Intl date and number formatting. */
 export const INTL_LOCALE: Record<Locale, string> = { en: "en-US", vi: "vi-VN" };
 

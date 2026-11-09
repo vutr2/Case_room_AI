@@ -6,10 +6,13 @@ import { makeTranslator } from "./translate";
 
 export const MESSAGES: Record<Locale, Messages> = { en, vi };
 
-/** Translator and formatters for a given language: no request needed (services, emails, AI prompts). */
-export function i18nFor(locale: Locale) {
+/**
+ * Translator and formatters for a given language: no request needed (services,
+ * emails, AI prompts). Patient names follow the organization's language when given.
+ */
+export function i18nFor(locale: Locale, organization?: Locale) {
   const t = makeTranslator(MESSAGES[locale], locale);
-  return { locale, t, fmt: createFormat(t) };
+  return { locale, organizationLocale: organization, t, fmt: createFormat(t, organization) };
 }
 
 /** The organization's language for its AI output, emails and case text; "en" when unset or unknown. */

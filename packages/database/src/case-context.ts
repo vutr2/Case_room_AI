@@ -66,11 +66,13 @@ export async function loadCaseContext(
   ]);
 
   const { patient } = room;
+  const vietnamese = room.organization.locale === "vi";
   return {
-    outputLanguage: room.organization.locale === "vi" ? "vi" : "en",
+    outputLanguage: vietnamese ? "vi" : "en",
     patient: {
       id: patient.id,
-      displayName: `${patient.firstName} ${patient.lastName}`,
+      // Vietnamese names are written family name first: "Nguyễn Văn Thành".
+      displayName: vietnamese ? `${patient.lastName} ${patient.firstName}` : `${patient.firstName} ${patient.lastName}`,
       firstName: patient.firstName,
       lastName: patient.lastName,
       age: ageOn(patient.dateOfBirth, now),

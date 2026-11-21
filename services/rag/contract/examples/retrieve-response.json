@@ -1,0 +1,26 @@
+{
+  "passages": [
+    {
+      "kind": "document",
+      "sourceId": "doc_synthetic_pathology",
+      "title": "Core biopsy pathology report",
+      "text": "BIOMARKERS: ER positive (90%), PR positive (40%), HER2 3+ by IHC. Ki-67 30%.",
+      "score": 0.91,
+      "date": "2026-10-02",
+      "reference": null,
+      "part": 3,
+      "parts": 3
+    },
+    {
+      "kind": "guideline",
+      "sourceId": "guideline_synthetic_her2_testing",
+      "title": "Synthetic HER2 testing guideline",
+      "text": "IHC 3+ is HER2 positive; no in situ hybridization is needed to confirm it.",
+      "score": 0.74,
+      "date": null,
+      "reference": "Synthetic guideline, section 2.1",
+      "part": null,
+      "parts": null
+    }
+  ]
+}

@@ -3,7 +3,8 @@
  *
  *   providers/  low-level LLM clients (Anthropic, OpenAI, NVIDIA NIM) behind LLMClient
  *   context/    case record serialization + citation registry (source grounding)
- *   retrieval/  lexical passage retrieval (BM25)
+ *   retrieval/  local/: in-process BM25 passage retrieval (used today)
+ *               remote/: client for the retrieval service in services/rag (not wired yet)
  *   prompts/    system + task prompts
  *   memory/     shared patient memory merge logic
  *   services/   CaseAIProvider interface, LLM-backed and offline demo implementations
@@ -22,8 +23,18 @@ export { SourceRegistry, verifyQuote, normalizeForMatch } from "./context/source
 export { numberInlineCitations } from "./context/citations";
 export { formatCaseRecord, FULL_CONTEXT_CHAR_BUDGET, safe as neutralizeWrapperTags } from "./context/format-context";
 
-export { BM25Index } from "./retrieval/bm25";
-export { chunkDocument, retrievePassages } from "./retrieval/passages";
+export { BM25Index } from "./retrieval/local/bm25";
+export { chunkDocument, retrievePassages } from "./retrieval/local/passages";
+export { createRagClient, RagServiceError, type RagClient, type RagClientOptions, type RagDocumentRef } from "./retrieval/remote/rag-client";
+export {
+  RAG_PASSAGE_KINDS,
+  type RagIngestRequest,
+  type RagIngestResponse,
+  type RagPassage,
+  type RagPassageKind,
+  type RagRetrieveRequest,
+  type RagRetrieveResponse,
+} from "./retrieval/remote/contract";
 
 export { mergeMemoryFacts, removeDocumentFromMemory, emptyMemoryFacts, type MemoryFacts } from "./memory/merge";
 

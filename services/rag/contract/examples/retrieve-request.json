@@ -1,0 +1,7 @@
+{
+  "organizationId": "org_synthetic_riverside",
+  "caseRoomId": "case_synthetic_001",
+  "query": "What is the HER2 status?",
+  "limit": 5,
+  "kinds": ["document", "guideline"]
+}

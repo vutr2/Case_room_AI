@@ -26,6 +26,12 @@ codex-reviews/
 test-results/
 playwright-report/
 
+# Python (services/rag)
+.venv/
+__pycache__/
+.pytest_cache/
+.ruff_cache/
+
 # misc
 .DS_Store
 *.log
@@ -34,8 +40,3 @@ coverage/
 
 # Emails written by EMAIL_TRANSPORT=file without EMAIL_OUTBOX_DIR
 email-outbox/
-
-# Online demo server: secrets and the database CA certificate stay on the server
-deploy/.env
-deploy/certs/*
-!deploy/certs/.gitkeep

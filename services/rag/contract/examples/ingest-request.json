@@ -1,0 +1,12 @@
+{
+  "organizationId": "org_synthetic_riverside",
+  "caseRoomId": "case_synthetic_001",
+  "document": {
+    "id": "doc_synthetic_pathology",
+    "title": "Core biopsy pathology report",
+    "type": "PATHOLOGY_REPORT",
+    "date": "2026-10-02",
+    "language": "en",
+    "text": "SPECIMEN: Left breast core biopsy.\n\nDIAGNOSIS: Invasive ductal carcinoma, grade 2.\n\nBIOMARKERS: ER positive (90%), PR positive (40%), HER2 3+ by IHC. Ki-67 30%."
+  }
+}

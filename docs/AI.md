@@ -36,6 +36,8 @@ Selection: `AI_PROVIDER` if set, otherwise Anthropic when `ANTHROPIC_API_KEY` is
 
 Up to 150,000 characters of documents are included in full. Above that, the documents section switches to a document index plus BM25-retrieved passages for the question, still cited by document key.
 
+Retrieval runs in process (`packages/ai/src/retrieval/local`). A separate retrieval service with hybrid search over case documents, guidelines and literature is being built in `services/rag`. Its client is `packages/ai/src/retrieval/remote` and is not wired in yet.
+
 ## Source grounding ("never fabricate a medical source")
 
 - Every record gets a citation key: `D#` documents (by date), `T#` timeline events, `DEC#` decisions, `TK#` tasks, `M#` messages.

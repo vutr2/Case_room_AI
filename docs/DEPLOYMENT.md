@@ -26,8 +26,6 @@ docker compose --profile demo run --rm seed       # synthetic demo data (erases 
 
 Sign in with a demo account from the README (password `demo1234`). Uploaded originals are kept in the `storage-data` volume.
 
-To put the synthetic demo online (one server with HTTPS and a shared site password, database on Supabase), follow [DEPLOY_DEMO.md](DEPLOY_DEMO.md).
-
 ## Configuration
 
 Set these in the container environment. Never bake them into an image.

@@ -46,6 +46,7 @@ flowchart TB
 | Business logic | `apps/web/src/server/services` | authz, `@ccr/database`, `@ccr/ai`, realtime, storage | UI |
 | Authorization | `apps/web/src/server/authz` | session user, Prisma (membership) | AI |
 | AI | `packages/ai` | `@ccr/types`, LLM SDKs | Prisma, Next.js, the database |
+| Retrieval service (in development) | `services/rag` (Python, FastAPI) | its own pgvector database, Neo4j | the web app's database, users, permissions |
 | Data | `packages/database` | Prisma, `@ccr/types` | AI at runtime (the seed uses the demo engine) |
 
 The AI package receives a fully built, **authorized** `CaseContext` (see `packages/types/src/case-context.ts`); it cannot query the database or reach records the requester is not allowed to see.
@@ -188,7 +189,7 @@ Server-Sent Events per case room, backed by PostgreSQL `LISTEN/NOTIFY`:
 |---|---|
 | EHR / FHIR / HL7 connectors | A new ingestion service creating `ClinicalDocument` rows (and structured observations) from connector payloads; the processing pipeline is unchanged. |
 | PACS | Link imaging studies to documents; the AI keeps working from reports only unless a regulated imaging model is added. |
-| Guideline and literature retrieval | New retrievers in `packages/ai/src/retrieval`, exposed as an additional context block with their own citation kinds. |
+| Guideline and literature retrieval | The retrieval service in `services/rag`, called through `packages/ai/src/retrieval/remote` after the case access check. Its passages need their own citation kinds (`G#`, `L#`). See `services/rag/README.md`. |
 | Fine-tuned or private models | Implement `LLMClient` (for example an on-prem OpenAI-compatible endpoint) and select it in `createCaseAIProvider`. |
 | Role-specific agents | Additional `CaseAIProvider` methods or a router choosing prompts by requester role; the authorization boundary stays the `CaseContext`. |
 | Hospital SSO | Auth.js OIDC/SAML providers mapped to existing users by email. |

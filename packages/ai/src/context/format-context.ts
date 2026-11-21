@@ -11,7 +11,7 @@ import {
   TIMELINE_EVENT_TYPE_LABELS,
   USER_ROLE_LABELS,
 } from "@ccr/types";
-import { retrievePassages, totalDocumentChars } from "../retrieval/passages";
+import { retrievePassages, totalDocumentChars } from "../retrieval/local/passages";
 import type { SourceRegistry } from "./source-registry";
 
 /**

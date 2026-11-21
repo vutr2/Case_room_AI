@@ -1,0 +1,56 @@
+# Databases for the retrieval service. The service itself runs on your machine (see README.md).
+#
+#   cd services/rag
+#   docker compose up -d --wait     # pgvector on localhost:5433, Neo4j on localhost:7474 / 7687
+#   docker compose down             # stop, keep the data (add -v to erase the index and the graph)
+#
+# Ports are bound to localhost only. Memory caps keep both inside a Docker Desktop VM of about 3 GB.
+# The credentials are for local development only.
+
+name: case-room-rag
+
+services:
+  postgres:
+    image: pgvector/pgvector:pg16
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: case_room_rag
+    ports:
+      - "127.0.0.1:5433:5432" # 5432 is left to the web app's PostgreSQL
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+      - ./db/init:/docker-entrypoint-initdb.d:ro
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d case_room_rag"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    mem_limit: 512m
+
+  neo4j:
+    image: neo4j:5-community
+    environment:
+      NEO4J_AUTH: neo4j/${NEO4J_PASSWORD:-case-room-dev}
+      NEO4J_PLUGINS: '["apoc"]' # LangChain's Neo4j integration reads the schema through APOC
+      NEO4J_server_memory_heap_initial__size: 512m
+      NEO4J_server_memory_heap_max__size: 512m
+      NEO4J_server_memory_pagecache_size: 256m
+      NEO4J_dbms_usage__report_enabled: "false"
+    ports:
+      - "127.0.0.1:7474:7474" # browser: http://localhost:7474
+      - "127.0.0.1:7687:7687" # bolt
+    volumes:
+      - neo4j-data:/data
+      - neo4j-logs:/logs # named, so recreating the container does not leave unnamed volumes behind
+    healthcheck:
+      test: ["CMD-SHELL", "wget -q --spider http://localhost:7474 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 12
+    mem_limit: 1536m
+
+volumes:
+  postgres-data:
+  neo4j-data:
+  neo4j-logs:

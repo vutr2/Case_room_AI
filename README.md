@@ -101,9 +101,9 @@ apps/
     src/server/        business logic: auth, authz, services, actions, realtime, storage
 packages/
   ai/                  provider-agnostic AI layer
-    src/providers/     LLM clients (Anthropic, OpenAI)
+    src/providers/     LLM clients (Anthropic, OpenAI, NVIDIA NIM)
     src/context/       case record serialization + citation registry (source grounding)
-    src/retrieval/     BM25 passage retrieval
+    src/retrieval/     local/: in-process BM25 passage retrieval; remote/: client for services/rag
     src/prompts/       system + task prompts
     src/memory/        shared patient memory merge
     src/services/      CaseAIProvider interface, LLM-backed and offline demo implementations
@@ -111,6 +111,8 @@ packages/
   types/               shared domain types and schemas (no runtime dependencies on Prisma)
   ui/                  design system (shadcn/ui on Radix)
   config/              shared TypeScript configuration
+services/
+  rag/                 retrieval service (Python, FastAPI), in development: ingestion, hybrid retrieval, evals
 docs/                  architecture, AI layer, demo script
 ```
 
@@ -151,8 +153,8 @@ The bundled data is synthetic. Running with real patient information requires th
 
 - Development: `docker compose up -d postgres` starts PostgreSQL (`docker compose up -d` adds MinIO for S3-compatible storage; set `S3_*` in `.env` to use it). The app runs with `npm run dev`.
 - Everything in containers: `AUTH_SECRET=$(openssl rand -base64 32) docker compose --profile app up -d --build`, then `docker compose --profile demo run --rm seed` for the synthetic demo data.
+- Retrieval service (in development): its databases (pgvector and Neo4j) have their own compose file, started with `docker compose up -d` in `services/rag`. See [services/rag/README.md](services/rag/README.md).
 - Deploying for others to use: read [docs/DEPLOYMENT.md](docs/DEPLOYMENT.md) (images, configuration, release steps, reverse proxy, backups, checklist).
-- Putting the synthetic demo online behind a password: [docs/DEPLOY_DEMO.md](docs/DEPLOY_DEMO.md) (one server with HTTPS, database on Supabase).
 
 ## Out of scope for this MVP
 

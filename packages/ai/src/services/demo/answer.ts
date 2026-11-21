@@ -1,9 +1,9 @@
 import type { AIConfidence, CaseContext, ContextDocument } from "@ccr/types";
 import { APPROVAL_STATUS_LABELS, DECISION_STATUS_LABELS } from "@ccr/types";
 import { isTeamStatement, type SourceRegistry } from "../../context/source-registry";
-import { retrievePassages } from "../../retrieval/passages";
-import { BM25Index } from "../../retrieval/bm25";
-import { tokenize } from "../../retrieval/tokenize";
+import { retrievePassages } from "../../retrieval/local/passages";
+import { BM25Index } from "../../retrieval/local/bm25";
+import { tokenize } from "../../retrieval/local/tokenize";
 import type { CaseAnswer } from "../types";
 import {
   Citer,

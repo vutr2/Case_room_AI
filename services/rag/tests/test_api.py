@@ -32,12 +32,11 @@ def test_requests_with_unknown_fields_are_rejected(client, auth):
 
 
 # Replace this test with real ones as you build each endpoint.
+# /v1/ingest and DELETE are built: their tests are in tests/test_ingest_service.py.
 @pytest.mark.parametrize(
     ("method", "path", "body"),
     [
-        ("POST", "/v1/ingest", "ingest-request"),
         ("POST", "/v1/retrieve", "retrieve-request"),
-        ("DELETE", DELETE_PATH, None),
     ],
 )
 def test_endpoints_not_built_yet_answer_501(client, auth, method, path, body):

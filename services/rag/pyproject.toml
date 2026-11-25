@@ -6,8 +6,13 @@ license = "AGPL-3.0-only"
 requires-python = ">=3.12"
 dependencies = [
     "fastapi>=0.115",
+    "future>=1.0.0",
+    "numpy>=2.5.5",
+    "pgvector>=0.5.1",
+    "psycopg[binary,pool]>=3.3.9",
     "pydantic>=2.9",
     "pydantic-settings>=2.6",
+    "sentence-transformers>=6.3.0",
     "uvicorn[standard]>=0.32",
 ]
 
@@ -24,6 +29,10 @@ package = false
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 addopts = "-ra"
+markers = [
+    "db: needs pgvector on port 5433",
+    "model: downloads a real model",
+]
 
 [tool.ruff]
 line-length = 120

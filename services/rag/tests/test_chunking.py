@@ -1,6 +1,20 @@
 from itertools import pairwise
 
-from app.ingest.chunking import _group, _hard_cut, _paragraphs, _pieces, _trim, chunk_by_section, find_sections
+import pytest
+
+from app.ingest.chunking import (
+    _group,
+    _hard_cut,
+    _last_space,
+    _paragraphs,
+    _pieces,
+    _trim,
+    chunk_by_section,
+    chunk_fixed,
+    chunk_text,
+    find_sections,
+    heading_of,
+)
 
 
 def assert_tiles(spans, start, end):
@@ -281,3 +295,183 @@ def test_a_document_without_headings_has_no_section():
 def test_empty_or_blank_text_gives_no_chunks():
     assert chunk_by_section("", 1000) == []
     assert chunk_by_section("  \n\n\t ", 1000) == []
+
+
+# --- _last_space -------------------------------------------------------------
+
+#            0123456789012345678
+LAST_SPACE = "HER2 dương tính 3+"  # spaces at 4 and 10
+
+
+def test_last_space_returns_the_last_space_in_the_range():
+    assert _last_space(LAST_SPACE, 0, len(LAST_SPACE)) == 15
+
+
+def test_last_space_returns_the_position_of_the_space_itself_not_after_it():
+    assert LAST_SPACE[_last_space(LAST_SPACE, 0, 8)] == " "
+    assert _last_space(LAST_SPACE, 0, 8) == 4
+
+
+def test_last_space_finds_a_newline_too():
+    text = "CHẨN ĐOÁN:\nUng"
+    assert _last_space(text, 0, len(text)) == text.index("\n")
+
+
+def test_last_space_is_none_when_the_range_has_no_whitespace():
+    assert _last_space(LAST_SPACE, 5, 10) is None  # "dương"
+    assert _last_space("x" * 50, 0, 50) is None
+
+
+def test_last_space_does_not_look_at_position_hi():
+    # The space at 4 is the end of the range [0, 4): it is outside.
+    assert _last_space(LAST_SPACE, 0, 4) is None
+
+
+def test_last_space_counts_position_lo():
+    assert _last_space(LAST_SPACE, 4, 8) == 4
+
+
+def test_last_space_does_not_look_before_lo():
+    assert _last_space(LAST_SPACE, 5, 9) is None
+
+
+def test_last_space_of_an_empty_range_is_none():
+    assert _last_space(LAST_SPACE, 7, 7) is None
+
+
+def test_last_space_returns_an_absolute_position():
+    # Searching from the middle still counts from the start of the text, not from lo.
+    assert _last_space(LAST_SPACE, 6, 18) == 15
+
+
+# --- chunk_fixed -------------------------------------------------------------
+
+LONG_VI = (
+    "Bệnh nhân nữ 52 tuổi, phát hiện khối u vú trái kích thước 3,4 cm qua siêu âm. "
+    "Sinh thiết lõi kim cho kết quả ung thư biểu mô thể ống xâm nhập, độ mô học 3. "
+    "Hóa mô miễn dịch: ER âm tính, PR âm tính, HER2 dương tính 3+, Ki-67 45%.\n"
+    "CT ngực bụng chưa ghi nhận di căn xa. Hội chẩn đề nghị hóa trị tân bổ trợ. "
+) * 8
+
+
+def splits_a_word(text: str, position: int) -> bool:
+    """True if position falls between two letters or digits of the same word."""
+    return 0 < position < len(text) and text[position - 1].isalnum() and text[position].isalnum()
+
+
+def test_fixed_chunk_text_is_verbatim():
+    for c in chunk_fixed(LONG_VI, size=200, overlap=50):
+        assert c.text == LONG_VI[c.start : c.end]
+
+
+def test_fixed_chunks_are_never_longer_than_size():
+    assert all(len(c.text) <= 200 for c in chunk_fixed(LONG_VI, size=200, overlap=50))
+
+
+def test_consecutive_fixed_chunks_overlap():
+    chunks = chunk_fixed(LONG_VI, size=200, overlap=50)
+    assert len(chunks) > 2
+    for a, b in pairwise(chunks):
+        assert b.start < a.end  # the next chunk starts inside the previous one
+        assert b.start > a.start  # but always moves forward
+
+
+def test_the_overlap_is_at_most_overlap_characters():
+    for a, b in pairwise(chunk_fixed(LONG_VI, size=200, overlap=50)):
+        assert a.end - b.start <= 50
+
+
+def test_fixed_chunk_boundaries_never_split_a_word():
+    for c in chunk_fixed(LONG_VI, size=200, overlap=50):
+        assert not splits_a_word(LONG_VI, c.start), LONG_VI[c.start - 5 : c.start + 5]
+        assert not splits_a_word(LONG_VI, c.end), LONG_VI[c.end - 5 : c.end + 5]
+
+
+def test_fixed_chunks_cover_the_whole_text():
+    chunks = chunk_fixed(LONG_VI, size=200, overlap=50)
+    assert chunks[0].start == 0
+    assert chunks[-1].end == len(LONG_VI.rstrip())
+    covered = set()
+    for c in chunks:
+        covered.update(range(c.start, c.end))
+    assert [i for i, ch in enumerate(LONG_VI) if not ch.isspace() and i not in covered] == []
+
+
+def test_fixed_chunks_carry_no_whitespace_at_either_end():
+    for c in chunk_fixed(LONG_VI, size=200, overlap=50):
+        assert c.text == c.text.strip()
+
+
+def test_fixed_chunks_have_no_section_and_are_numbered_from_one():
+    chunks = chunk_fixed(LONG_VI, size=200, overlap=50)
+    assert {c.section for c in chunks} == {None}
+    assert [c.part for c in chunks] == list(range(1, len(chunks) + 1))
+    assert all(c.parts == len(chunks) for c in chunks)
+
+
+def test_a_text_shorter_than_size_is_one_fixed_chunk():
+    chunks = chunk_fixed("HER2 dương tính (3+).", size=800, overlap=150)
+    assert [(c.start, c.end, c.part, c.parts) for c in chunks] == [(0, 21, 1, 1)]
+
+
+def test_a_word_longer_than_size_is_cut_hard_and_still_terminates():
+    # No whitespace at all: _last_space finds nothing, so the chunk is cut at size.
+    text = "x" * 500
+    chunks = chunk_fixed(text, size=100, overlap=20)
+    assert all(len(c.text) <= 100 for c in chunks)
+    assert chunks[-1].end == 500
+    # No gap between chunks: an off-by-one in the "move to the next word" loop drops one character per cut.
+    covered = {i for c in chunks for i in range(c.start, c.end)}
+    assert covered == set(range(500))
+
+
+def test_a_long_unbroken_token_in_normal_text_loses_nothing():
+    # A URL or gene sequence longer than the overlap must not swallow the text after it.
+    text = "Xem kết quả tại " + "B" * 300 + " cuối báo cáo."
+    chunks = chunk_fixed(text, size=100, overlap=20)
+    covered = {i for c in chunks for i in range(c.start, c.end)}
+    assert [i for i, ch in enumerate(text) if not ch.isspace() and i not in covered] == []
+
+
+def test_an_overlap_as_large_as_size_still_terminates():
+    chunks = chunk_fixed("một hai ba bốn năm sáu bảy tám chín mười", size=10, overlap=10)
+    assert chunks[-1].end == len("một hai ba bốn năm sáu bảy tám chín mười")
+
+
+def test_empty_or_blank_text_gives_no_fixed_chunks():
+    assert chunk_fixed("") == []
+    assert chunk_fixed("   \n\n  ") == []
+
+
+# --- chunk_text --------------------------------------------------------------
+
+
+def test_chunk_text_dispatches_on_the_strategy():
+    assert chunk_text(LONG_VI, "section") == chunk_by_section(LONG_VI)
+    assert chunk_text(LONG_VI, "fixed") == chunk_fixed(LONG_VI)
+
+
+def test_chunk_text_passes_target_chars_to_the_section_strategy():
+    assert chunk_text(LONG_VI, "section", 300) == chunk_by_section(LONG_VI, 300)
+
+
+def test_chunk_text_of_empty_text_is_empty():
+    assert chunk_text("", "section") == []
+    assert chunk_text("", "fixed") == []
+
+
+def test_chunk_text_rejects_an_unknown_strategy():
+    with pytest.raises(ValueError):
+        chunk_text(LONG_VI, "Section")  # type: ignore[arg-type]
+
+
+# --- heading_of (from the handout's list) ----------------------------------------
+
+
+def test_an_uppercase_label_before_a_colon_is_a_heading():
+    assert heading_of("CHẨN ĐOÁN: Ung thư biểu mô tuyến") == "CHẨN ĐOÁN"
+    assert heading_of("DIAGNOSIS: Invasive ductal carcinoma") == "DIAGNOSIS"
+
+
+def test_a_line_with_lowercase_before_the_colon_is_not_a_heading():
+    assert heading_of("ER positive (90%): yes") is None

@@ -1,5 +1,6 @@
 import re
 from dataclasses import dataclass
+from typing import Literal
 
 _BLANK_LINES = re.compile(r"\n[ \t]*\n+")
 
@@ -137,10 +138,31 @@ def _section_name(sections, position: int) -> str | None:
     return None
 
 
-def chunk_by_section(text, target_chars: int = 1000) -> list[Chunk]:
+def chunk_by_section(text: str, target_chars: int = 900) -> list[Chunk]:
     sections = find_sections(text)
     pieces = _pieces(text, sections, target_chars)
     spans = _group(pieces, target_chars)
+    # spans = [_trim(text, s, e) for s, e in spans]
+    # spans = [(s, e) for s, e in spans if s < e]
+
+    # parts = len(spans)
+    # chunks = []
+    # for i, (s, e) in enumerate(spans):
+    #     chunks.append(
+    #         Chunk(
+    #             part=i + 1,
+    #             parts=parts,
+    #             start=s,
+    #             end=e,
+    #             section=_section_name(sections, s),
+    #             text=text[s:e],
+    #         )
+    #     )
+    # return chunks
+    return _build_chunks(text, spans, sections)
+
+
+def _build_chunks(text: str, spans: list[tuple[int, int]], sections=()) -> list[Chunk]:
     spans = [_trim(text, s, e) for s, e in spans]
     spans = [(s, e) for s, e in spans if s < e]
 
@@ -158,3 +180,43 @@ def chunk_by_section(text, target_chars: int = 1000) -> list[Chunk]:
             )
         )
     return chunks
+
+
+def chunk_fixed(text: str, size: int = 800, overlap: int = 150) -> list[Chunk]:
+    """Fixed-size chunks with overlap, the baseline for Bài 9 (Handout 1, Bài 2)."""
+    spans, start, n = [], 0, len(text)
+    while start < n:
+        end = min(start + size, n)
+        if end < n:
+            cut = _last_space(text, start + size // 2, end)
+            if cut is not None:
+                end = cut
+        spans.append((start, end))
+        if end == n:
+            break
+        start = max(end - overlap, start + 1)
+        while start < end and not text[start - 1].isspace():
+            start += 1
+    return _build_chunks(text, spans)
+
+
+def _last_space(text: str, lo: int, hi: int) -> int | None:
+    """Position of the last whitespace character in text[lo:hi], or None if there is none."""
+    for i in range(hi - 1, lo - 1, -1):
+        if text[i].isspace():
+            return i
+    return None
+
+
+def chunk_text(text: str, strategy: Literal["section", "fixed"], target_chars: int = 900) -> list[Chunk]:
+    """Call chunk_by_section or chunk_fixed according to strategy (Handout 1, Bài 2).
+
+    target_chars only applies to the section strategy; it stays configurable for the
+    chunk-size experiments of Bài 9. The fixed strategy keeps its own defaults.
+    """
+    if strategy == "section":
+        return chunk_by_section(text, target_chars)
+    elif strategy == "fixed":
+        return chunk_fixed(text)
+    else:
+        raise ValueError(f"{strategy} strategy is wrong")

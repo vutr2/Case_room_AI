@@ -43,3 +43,6 @@ email-outbox/
 
 # Personal study notes for the RAG service; not part of the project.
 services/rag/Handout*.md
+
+# Personal editor settings
+.vscode/

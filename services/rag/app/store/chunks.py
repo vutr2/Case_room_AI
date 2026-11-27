@@ -135,11 +135,40 @@ def delete_chunks(conn: Connection, ref: DocumentRef) -> int:
 
 def list_case_chunks(conn: Connection, organization_id: str, case_room_id: str, strategy: str) -> list[StoredChunk]:
     """Every chunk of one case, ordered by source_id then part (Handout 1, Bài 4)."""
-    raise NotImplementedError("Bài 4: list_case_chunks")
+    sql = """SELECT id, case_room_id, source_id, kind, title, doc_date, part, parts, section, text FROM chunks
+        WHERE kind = 'document'
+        AND organization_id = %s
+        AND case_room_id = %s
+        AND strategy = %s
+        ORDER BY source_id, part"""
+    rows = conn.execute(sql, (organization_id, case_room_id, strategy)).fetchall()
+
+    return [StoredChunk(*row) for row in rows]
 
 
 def dense_search(
     conn: Connection, organization_id: str, case_room_id: str, query_vector: np.ndarray, k: int, strategy: str
 ) -> list[tuple[StoredChunk, float]]:
     """The k chunks of one case closest to query_vector, with their cosine similarity (Handout 1, Bài 4)."""
-    raise NotImplementedError("Bài 4: dense_search")
+    sql = """SELECT id, case_room_id, source_id, kind, title, doc_date, part, parts, section, text, 
+        1 - (embedding <=> %(q)s::vector) AS score FROM chunks
+        WHERE kind = 'document'
+        AND organization_id = %(organization_id)s
+        AND case_room_id = %(case_room_id)s
+        AND strategy = %(strategy)s
+        ORDER BY embedding <=> %(q)s::vector
+        LIMIT %(k)s"""
+
+    params = {
+        "organization_id": organization_id,
+        "case_room_id": case_room_id,
+        "strategy": strategy,
+        "q": query_vector,
+        "k": k,
+    }
+    rows = conn.execute(sql, params).fetchall()
+
+    res = []
+    for row in rows:
+        res.append((StoredChunk(*row[:10]), row[10]))
+    return res

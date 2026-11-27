@@ -1,0 +1,11 @@
+{
+    "python.defaultInterpreterPath": "${workspaceFolder}/services/rag/.venv/bin/python",
+    "python.testing.pytestArgs": [
+        "tests"
+    ],
+    "python.testing.cwd": "${workspaceFolder}/services/rag",
+    "python.envFile": "${workspaceFolder}/services/rag/.env",
+    "python.testing.unittestEnabled": false,
+    "python.testing.pytestEnabled": true,
+    "python-envs.defaultEnvManager": "ms-python.python:system"
+}

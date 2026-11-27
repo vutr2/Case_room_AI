@@ -1,13 +1,21 @@
+from __future__ import annotations
+
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import TYPE_CHECKING
 
 import numpy as np
 from psycopg import Connection
 
-from ..ingest.chunking import Chunk
 from ..schemas import IngestDocument
+
+if TYPE_CHECKING:
+    # Only a type hint here. Importing it for real would load app.ingest, whose
+    # service.py imports this module back: a circular import when this module
+    # is imported first (e.g. by app.retrieval.bm25).
+    from ..ingest.chunking import Chunk
 
 SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 

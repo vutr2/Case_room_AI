@@ -1,4 +1,4 @@
-"""Tests for replace_chunks and delete_chunks.
+"""Tests for replace_chunks, delete_chunks, list_case_chunks and dense_search.
 
 Each test runs in its own empty Postgres schema (the `conn` fixture in conftest.py).
 """
@@ -13,8 +13,11 @@ from app.ingest.chunking import Chunk, chunk_by_section
 from app.schemas import IngestDocument
 from app.store.chunks import (
     DocumentRef,
+    StoredChunk,
     delete_chunks,
+    dense_search,
     ensure_schema,
+    list_case_chunks,
     replace_chunks,
 )
 
@@ -41,8 +44,8 @@ def document(doc_id: str = "doc-1", text: str = REPORT) -> IngestDocument:
     )
 
 
-def ref(case_room_id: str = "case-1", doc_id: str = "doc-1") -> DocumentRef:
-    return DocumentRef(organization_id="org-1", case_room_id=case_room_id, document_id=doc_id)
+def ref(case_room_id: str = "case-1", doc_id: str = "doc-1", organization_id: str = "org-1") -> DocumentRef:
+    return DocumentRef(organization_id=organization_id, case_room_id=case_room_id, document_id=doc_id)
 
 
 def store(conn, r: DocumentRef, doc: IngestDocument, strategy: str = "section", target: int = 80) -> int:
@@ -256,3 +259,228 @@ def test_delete_never_touches_shared_guidelines(db):
     store(db, ref(), document())
     delete_chunks(db, ref())
     assert count(db, "kind = 'guideline'") == 1
+
+
+# --- list_case_chunks ---------------------------------------------------
+
+OTHER_REPORT = "KẾT LUẬN:\nKhối u phổi thùy trên phải, EGFR L858R dương tính.\n\nĐỀ NGHỊ: Hội chẩn tiểu ban u phổi."
+
+
+def test_list_returns_every_chunk_of_the_case_as_stored_chunks(db):
+    store(db, ref(), document())
+    chunks = chunk_by_section(REPORT, 80)
+
+    listed = list_case_chunks(db, "org-1", "case-1", "section")
+
+    assert all(isinstance(c, StoredChunk) for c in listed)
+    assert [(c.part, c.parts, c.section, c.text) for c in listed] == [
+        (c.part, c.parts, c.section, c.text) for c in chunks
+    ]
+
+
+def test_list_fills_every_field_from_its_column(db):
+    store(db, ref(), document())
+
+    first = list_case_chunks(db, "org-1", "case-1", "section")[0]
+    row_id = db.execute("SELECT id FROM chunks WHERE part = 1").fetchone()[0]
+
+    # Catches a SELECT whose columns are not in the same order as the StoredChunk fields.
+    assert first.id == row_id
+    assert first.case_room_id == "case-1"
+    assert first.source_id == "doc-1"
+    assert first.kind == "document"
+    assert first.title == "Phiếu giải phẫu bệnh"
+    assert first.doc_date == dt.date(2026, 3, 2)
+    assert first.part == 1
+
+
+def test_list_text_is_the_verbatim_chunk_text(db):
+    store(db, ref(), document())
+
+    for chunk in list_case_chunks(db, "org-1", "case-1", "section"):
+        assert chunk.text in REPORT
+
+
+def test_list_is_ordered_by_source_id_then_part(db):
+    # Inserted in the "wrong" order: doc-b first, then doc-a.
+    store(db, ref(doc_id="doc-b"), document("doc-b"))
+    store(db, ref(doc_id="doc-a"), document("doc-a", OTHER_REPORT))
+
+    listed = list_case_chunks(db, "org-1", "case-1", "section")
+    keys = [(c.source_id, c.part) for c in listed]
+
+    assert keys == sorted(keys)
+    assert {c.source_id for c in listed} == {"doc-a", "doc-b"}
+
+
+def test_list_of_an_empty_case_is_an_empty_list(db):
+    store(db, ref(), document())
+
+    assert list_case_chunks(db, "org-1", "case-without-documents", "section") == []
+
+
+def test_list_never_returns_another_case_room(db):
+    # The same text in two cases of the same organization.
+    store(db, ref("case-1"), document())
+    store(db, ref("case-2"), document())
+
+    listed = list_case_chunks(db, "org-1", "case-1", "section")
+
+    assert listed
+    assert {c.case_room_id for c in listed} == {"case-1"}
+
+
+def test_list_never_returns_another_organization_with_the_same_case_room_id(db):
+    # Two hospitals may use the same case_room_id; only organization_id tells them apart.
+    store(db, ref("case-1", organization_id="org-1"), document())
+    store(db, ref("case-1", "doc-other", organization_id="org-2"), document("doc-other", OTHER_REPORT))
+
+    listed = list_case_chunks(db, "org-1", "case-1", "section")
+
+    assert listed
+    assert {c.source_id for c in listed} == {"doc-1"}
+    assert {c.source_id for c in list_case_chunks(db, "org-2", "case-1", "section")} == {"doc-other"}
+
+
+def test_list_returns_only_the_given_strategy(db):
+    store(db, ref(), document(), strategy="section")
+    store(db, ref(), document(), strategy="fixed", target=40)
+
+    section = list_case_chunks(db, "org-1", "case-1", "section")
+    fixed = list_case_chunks(db, "org-1", "case-1", "fixed")
+
+    assert len(section) == len(chunk_by_section(REPORT, 80))
+    assert len(fixed) == len(chunk_by_section(REPORT, 40))
+    assert len(section) != len(fixed)  # otherwise this test could not tell them apart
+
+
+def test_list_never_returns_guidelines_even_with_the_same_scope(db):
+    # Only `kind = 'document'` keeps this guideline out: its organization and case match.
+    db.execute(
+        "INSERT INTO chunks (kind, organization_id, case_room_id, source_id, title, language, strategy,"
+        " part, parts, char_start, char_end, text, embedding)"
+        " VALUES ('guideline', 'org-1', 'case-1', 'nccn', 'NCCN', 'en', 'section', 1, 1, 0, 4, 'HER2', %s)",
+        (fake_embed(["HER2"])[0],),
+    )
+    store(db, ref(), document())
+
+    assert {c.kind for c in list_case_chunks(db, "org-1", "case-1", "section")} == {"document"}
+
+
+# --- dense_search -------------------------------------------------------
+#
+# The stored vectors come from fake_embed(chunk.text), so fake_embed([some chunk text])[0]
+# is exactly that chunk's vector: searching with it must find that chunk first, score 1.
+
+
+def query_for(text: str) -> np.ndarray:
+    return fake_embed([text])[0]
+
+
+def test_dense_finds_the_chunk_whose_vector_is_the_query(db):
+    store(db, ref(), document())
+    target = chunk_by_section(REPORT, 80)[1]
+
+    results = dense_search(db, "org-1", "case-1", query_for(target.text), 3, "section")
+
+    best, score = results[0]
+    assert best.text == target.text
+    assert best.part == target.part
+    assert score == pytest.approx(1.0, abs=1e-5)
+
+
+def test_dense_returns_stored_chunk_and_float_pairs(db):
+    store(db, ref(), document())
+
+    results = dense_search(db, "org-1", "case-1", query_for("HER2"), 3, "section")
+
+    assert results
+    for chunk, score in results:
+        assert isinstance(chunk, StoredChunk)
+        assert isinstance(score, float)
+        assert (chunk.case_room_id, chunk.source_id, chunk.kind) == ("case-1", "doc-1", "document")
+        assert chunk.title == "Phiếu giải phẫu bệnh"
+        assert chunk.doc_date == dt.date(2026, 3, 2)
+
+
+def test_dense_score_is_the_cosine_similarity(db):
+    # Catches a score written as the distance (embedding <=> q) instead of 1 - distance.
+    store(db, ref(), document())
+    query = query_for("Ung thư vú")
+
+    for chunk, score in dense_search(db, "org-1", "case-1", query, 10, "section"):
+        assert score == pytest.approx(float(np.dot(query, query_for(chunk.text))), abs=1e-5)
+
+
+def test_dense_results_go_from_most_to_least_similar(db):
+    store(db, ref(), document())
+
+    scores = [score for _, score in dense_search(db, "org-1", "case-1", query_for("HER2"), 10, "section")]
+
+    assert len(scores) > 1
+    assert scores == sorted(scores, reverse=True)
+
+
+def test_dense_returns_at_most_k_results(db):
+    store(db, ref(), document())
+    total = len(chunk_by_section(REPORT, 80))
+    assert total > 2
+
+    assert len(dense_search(db, "org-1", "case-1", query_for("HER2"), 2, "section")) == 2
+    assert len(dense_search(db, "org-1", "case-1", query_for("HER2"), total + 5, "section")) == total
+
+
+def test_dense_in_an_empty_case_is_an_empty_list(db):
+    store(db, ref(), document())
+
+    assert dense_search(db, "org-1", "case-without-documents", query_for("HER2"), 5, "section") == []
+
+
+def test_dense_never_returns_another_case_room(db):
+    # The same text, so the same vectors, in two cases: case-2 rows are exactly as close.
+    store(db, ref("case-1"), document())
+    store(db, ref("case-2"), document())
+    target = chunk_by_section(REPORT, 80)[0]
+
+    results = dense_search(db, "org-1", "case-1", query_for(target.text), 100, "section")
+
+    assert results
+    assert {c.case_room_id for c, _ in results} == {"case-1"}
+    assert len(results) == len(chunk_by_section(REPORT, 80))
+
+
+def test_dense_never_returns_another_organization_with_the_same_case_room_id(db):
+    store(db, ref("case-1", organization_id="org-1"), document())
+    store(db, ref("case-1", "doc-other", organization_id="org-2"), document("doc-other"))
+    target = chunk_by_section(REPORT, 80)[0]
+
+    results = dense_search(db, "org-1", "case-1", query_for(target.text), 100, "section")
+
+    assert results
+    assert {c.source_id for c, _ in results} == {"doc-1"}
+
+
+def test_dense_returns_only_the_given_strategy(db):
+    store(db, ref(), document(), strategy="section")
+    store(db, ref(), document(), strategy="fixed", target=40)
+    fixed_text = chunk_by_section(REPORT, 40)[0].text
+
+    results = dense_search(db, "org-1", "case-1", query_for(fixed_text), 100, "section")
+
+    assert len(results) == len(chunk_by_section(REPORT, 80))
+    assert {c.text for c, _ in results} == {c.text for c in chunk_by_section(REPORT, 80)}
+
+
+def test_dense_never_returns_guidelines_even_with_the_same_scope(db):
+    # The guideline's vector IS the query, so it would rank first if `kind` were not filtered.
+    db.execute(
+        "INSERT INTO chunks (kind, organization_id, case_room_id, source_id, title, language, strategy,"
+        " part, parts, char_start, char_end, text, embedding)"
+        " VALUES ('guideline', 'org-1', 'case-1', 'nccn', 'NCCN', 'en', 'section', 1, 1, 0, 4, 'HER2', %s)",
+        (query_for("HER2"),),
+    )
+    store(db, ref(), document())
+
+    results = dense_search(db, "org-1", "case-1", query_for("HER2"), 100, "section")
+
+    assert {c.kind for c, _ in results} == {"document"}

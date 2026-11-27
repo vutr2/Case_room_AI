@@ -1,6 +1,6 @@
 import "server-only";
 import { randomBytes } from "node:crypto";
-import { mkdir, writeFile } from "node:fs/promises";
+import { mkdir, rename, writeFile } from "node:fs/promises";
 import path from "node:path";
 import nodemailer from "nodemailer";
 import { appUrl } from "../app-url";
@@ -121,7 +121,12 @@ export async function sendEmail(message: EmailMessage): Promise<void> {
         await mkdir(directory, { recursive: true });
         const name = `${Date.now()}-${randomBytes(4).toString("hex")}.json`;
         const file = path.join(/*turbopackIgnore: true*/ directory, name);
-        await writeFile(file, JSON.stringify({ ...message, from: sender(), sentAt: new Date().toISOString() }, null, 2));
+        // Write under a temporary name, then rename: a reader polling for *.json files
+        // (the end-to-end tests) must never open a file that is still half written.
+        // A rename within one directory is atomic.
+        const partial = `${file}.partial`;
+        await writeFile(partial, JSON.stringify({ ...message, from: sender(), sentAt: new Date().toISOString() }, null, 2));
+        await rename(partial, file);
         return;
       }
       case "memory":

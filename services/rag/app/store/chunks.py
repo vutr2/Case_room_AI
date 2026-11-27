@@ -14,6 +14,8 @@ SCHEMA_PATH = Path(__file__).parent / "schema.sql"
 
 @dataclass(frozen=True)
 class DocumentRef:
+    """Which document a store operation is about: organization, case room and document id together."""
+
     organization_id: str
     case_room_id: str
     document_id: str
@@ -21,6 +23,11 @@ class DocumentRef:
 
 @dataclass(frozen=True)
 class StoredChunk:
+    """One row of the chunks table, as retrieval reads it back (Handout 1, Bài 4).
+
+    case_room_id and doc_date are None for shared knowledge (guidelines, literature).
+    """
+
     id: int
     case_room_id: str | None
     source_id: str
@@ -39,13 +46,13 @@ def ensure_schema(conn: Connection) -> None:
         conn.execute(SCHEMA_PATH.read_text(encoding="utf-8"))
 
 
-def replace_document_chunks(
+def replace_chunks(
     conn: Connection,
     ref: DocumentRef,
     document: IngestDocument,
-    strategy: str,
     chunks: Sequence[Chunk],
-    embeddings: np.ndarray,
+    vectors: np.ndarray,
+    strategy: str,
 ) -> int:
     """Replace every chunk of one document (for one strategy) in a single transaction.
 
@@ -54,8 +61,8 @@ def replace_document_chunks(
     if ref.document_id != document.id:
         raise ValueError(f"Document id mismatch: ref has {ref.document_id!r}, document has {document.id!r}")
     expected_shape = (len(chunks), 1024)
-    if embeddings.shape != expected_shape:
-        raise ValueError(f"Expected embeddings shape {expected_shape}; got {embeddings.shape}")
+    if vectors.shape != expected_shape:
+        raise ValueError(f"Expected vectors shape {expected_shape}; got {vectors.shape}")
 
     rows = [
         (
@@ -73,7 +80,7 @@ def replace_document_chunks(
             chunk.start,
             chunk.end,
             chunk.text,
-            embeddings[index],
+            vectors[index],
         )
         for index, chunk in enumerate(chunks)
     ]
@@ -110,7 +117,7 @@ def replace_document_chunks(
     return len(rows)
 
 
-def delete_document_chunks(conn: Connection, ref: DocumentRef) -> int:
+def delete_chunks(conn: Connection, ref: DocumentRef) -> int:
     """Delete every chunk of one document, whatever the strategy. Returns the rows deleted."""
     with conn.transaction():
         cursor = conn.execute(
@@ -124,3 +131,15 @@ def delete_document_chunks(conn: Connection, ref: DocumentRef) -> int:
             (ref.organization_id, ref.case_room_id, ref.document_id),
         )
     return cursor.rowcount
+
+
+def list_case_chunks(conn: Connection, organization_id: str, case_room_id: str, strategy: str) -> list[StoredChunk]:
+    """Every chunk of one case, ordered by source_id then part (Handout 1, Bài 4)."""
+    raise NotImplementedError("Bài 4: list_case_chunks")
+
+
+def dense_search(
+    conn: Connection, organization_id: str, case_room_id: str, query_vector: np.ndarray, k: int, strategy: str
+) -> list[tuple[StoredChunk, float]]:
+    """The k chunks of one case closest to query_vector, with their cosine similarity (Handout 1, Bài 4)."""
+    raise NotImplementedError("Bài 4: dense_search")

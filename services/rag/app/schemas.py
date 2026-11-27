@@ -27,10 +27,14 @@ class Request(BaseModel):
 
 
 class Response(BaseModel):
+    """Base of every response model: camelCase JSON like Request, but without extra="forbid"."""
+
     model_config = ConfigDict(alias_generator=to_camel, populate_by_name=True)
 
 
 class IngestDocument(Request):
+    """One processed case document, as the web app sends it: metadata plus its extracted text."""
+
     id: str = Field(min_length=1)
     title: str = Field(min_length=1)
     # A DocumentType from @ccr/types, for example "PATHOLOGY_REPORT".
@@ -41,18 +45,28 @@ class IngestDocument(Request):
 
 
 class IngestRequest(Request):
+    """Body of POST /v1/ingest: the document and the organization and case it belongs to."""
+
     organization_id: str = Field(min_length=1)
     case_room_id: str = Field(min_length=1)
     document: IngestDocument
 
 
 class IngestResponse(Response):
+    """Reply to POST /v1/ingest."""
+
     document_id: str
     # "accepted": queued and indexed in the background; "indexed": searchable now.
     status: Literal["accepted", "indexed"]
 
 
 class RetrieveRequest(Request):
+    """Body of POST /v1/retrieve: a question about one case.
+
+    organization_id and case_room_id are required: retrieval must never return a passage
+    from another organization's or another case's documents.
+    """
+
     organization_id: str = Field(min_length=1)
     case_room_id: str = Field(min_length=1)
     query: str = Field(min_length=1, max_length=2000)
@@ -61,6 +75,8 @@ class RetrieveRequest(Request):
 
 
 class Passage(Response):
+    """One retrieved piece of text, with where it comes from and its relevance score."""
+
     kind: PassageKind
     # The document id for "document" passages; the guideline or article id otherwise.
     source_id: str
@@ -76,4 +92,6 @@ class Passage(Response):
 
 
 class RetrieveResponse(Response):
+    """Reply to POST /v1/retrieve: passages ordered from most to least relevant."""
+
     passages: list[Passage]

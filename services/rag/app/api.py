@@ -14,6 +14,7 @@ router = APIRouter(prefix="/v1", dependencies=[Depends(require_service_token)])
 
 
 def get_resources(request: Request) -> Resources:
+    """FastAPI dependency: the one Resources object created in create_app (app.state.resources)."""
     return request.app.state.resources
 
 

@@ -21,7 +21,7 @@ def assert_tiles(spans, start, end):
     """So the fulfillment range [start, end], would stick together and there is no spaces"""
     assert spans[0][0] == start
     assert spans[-1][-1] == end
-    for (_, e), (s, _) in zip(spans, spans[1:]):
+    for (_, e), (s, _) in pairwise(spans):
         assert e == s
 
 

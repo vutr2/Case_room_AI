@@ -14,8 +14,8 @@ from pgvector.psycopg import register_vector
 from psycopg_pool import ConnectionPool
 
 from app.config import Settings
-from app.ingest.chunking import chunk_by_section
-from app.ingest.service import delete_document, ingest_document
+from app.ingest.chunking import Chunk, chunk_by_section, chunk_text
+from app.ingest.service import delete_document, embedding_input, ingest_document
 from app.main import create_app
 from app.schemas import IngestRequest, IngestResponse
 from app.store.chunks import ensure_schema
@@ -31,12 +31,20 @@ REPORT = (
 )
 
 
+TITLE = "Phiếu giải phẫu bệnh"
+
+
 def settings(**overrides) -> Settings:
     return Settings(_env_file=None, rag_service_token=TOKEN, **({"chunk_target_chars": 80} | overrides))
 
 
 def request(
-    text: str = REPORT, *, organization_id: str = "org-1", case_room_id: str = "case-1", doc_id: str = "doc-1"
+    text: str = REPORT,
+    *,
+    organization_id: str = "org-1",
+    case_room_id: str = "case-1",
+    doc_id: str = "doc-1",
+    title: str = TITLE,
 ) -> IngestRequest:
     return IngestRequest.model_validate(
         {
@@ -44,7 +52,7 @@ def request(
             "caseRoomId": case_room_id,
             "document": {
                 "id": doc_id,
-                "title": "Phiếu giải phẫu bệnh",
+                "title": title,
                 "type": "PATHOLOGY_REPORT",
                 "date": "2026-03-02",
                 "language": "vi",
@@ -159,16 +167,66 @@ def test_windows_line_endings_do_not_reach_the_store(res):
 
 
 @pytest.mark.db
-def test_all_chunks_are_embedded_in_one_call(res):
+def test_all_chunks_are_embedded_in_one_call_with_the_title_in_front(res):
     ingest_document(request(), res)
-    assert res.embedder().calls == [[c.text for c in chunk_by_section(REPORT, 80)]]
+    assert res.embedder().calls == [[f"{TITLE}\n{c.text}" for c in chunk_by_section(REPORT, 80)]]
 
 
 @pytest.mark.db
-def test_each_chunk_is_stored_with_its_own_vector(res):
+def test_each_chunk_is_stored_with_the_vector_of_its_embedding_input(res):
     ingest_document(request(), res)
     for text, embedding in rows(res, "SELECT text, embedding FROM chunks"):
-        assert np.allclose(embedding.to_numpy(), fake_embed([text])[0], atol=1e-6)
+        assert np.allclose(embedding.to_numpy(), fake_embed([f"{TITLE}\n{text}"])[0], atol=1e-6)
+
+
+@pytest.mark.db
+def test_the_title_is_embedded_but_never_stored_in_the_text(res):
+    # The web app checks quotes against the stored text: it must stay verbatim.
+    ingest_document(request(title="Core biopsy pathology report"), res)
+    for start, end, text in rows(res, "SELECT char_start, char_end, text FROM chunks"):
+        assert "Core biopsy pathology report" not in text
+        assert REPORT[start:end] == text
+
+
+@pytest.mark.db
+def test_a_new_title_changes_the_vectors_of_the_same_text(res):
+    ingest_document(request(title="Sinh thiết lõi kim"), res)
+    before = rows(res, "SELECT part, embedding FROM chunks ORDER BY part")
+    ingest_document(request(title="Bệnh phẩm sau mổ"), res)
+    after = rows(res, "SELECT part, embedding FROM chunks ORDER BY part")
+    assert [p for p, _ in before] == [p for p, _ in after]
+    for (_, old), (_, new) in zip(before, after, strict=True):
+        assert not np.allclose(old.to_numpy(), new.to_numpy())
+
+
+# --- embedding_input (no database needed) -----------------------------------------
+
+
+def chunk(text: str = "ER positive (90%), HER2 3+", section: str | None = "BIOMARKERS") -> Chunk:
+    return Chunk(part=1, parts=1, start=0, end=len(text), section=section, text=text)
+
+
+def test_embedding_input_is_the_title_then_the_chunk_text():
+    doc = request(title="Core biopsy pathology report").document
+    assert embedding_input(doc, chunk()) == "Core biopsy pathology report\nER positive (90%), HER2 3+"
+
+
+def test_embedding_input_keeps_the_chunk_text_verbatim():
+    text = "  HER2: dương tính (3+).\nKi-67: 45%.  "
+    assert embedding_input(request().document, chunk(text)).endswith("\n" + text)
+
+
+def test_embedding_input_normalizes_a_decomposed_title():
+    nfd_title = unicodedata.normalize("NFD", "Phiếu giải phẫu bệnh")
+    result = embedding_input(request(title=nfd_title).document, chunk())
+    assert result.startswith(unicodedata.normalize("NFC", "Phiếu giải phẫu bệnh") + "\n")
+
+
+def test_embedding_input_does_not_change_the_chunk_or_document():
+    doc, c = request().document, chunk()
+    embedding_input(doc, c)
+    assert c.text == "ER positive (90%), HER2 3+"
+    assert doc.title == TITLE
 
 
 # --- ingest_document: reprocessing ---------------------------------------------
@@ -214,14 +272,26 @@ def test_reingesting_in_one_case_room_leaves_the_other_alone(res):
     assert count(res, "case_room_id = 'case-2'") == n
 
 
-# --- ingest_document: unsupported strategy (no database needed) -------------------
+# --- ingest_document: chunking strategy -------------------------------------------
 
 
-def test_an_unsupported_strategy_fails_before_any_work():
-    res = FakeResources(settings(chunk_strategy="fixed"), pool=None)
-    with pytest.raises(NotImplementedError, match="fixed"):
-        ingest_document(request(), res)
-    assert res.embedder().calls == []  # no model time spent on a request that fails
+@pytest.mark.db
+def test_the_fixed_strategy_stores_fixed_chunks_without_sections(pool):
+    fixed = FakeResources(settings(chunk_strategy="fixed"), pool=pool)
+    ingest_document(request(), fixed)
+    stored = rows(fixed, "SELECT strategy, section, part, text FROM chunks ORDER BY part")
+    assert [(s, sec, p, t) for s, sec, p, t in stored] == [
+        ("fixed", None, c.part, c.text) for c in chunk_text(REPORT, "fixed")
+    ]
+
+
+@pytest.mark.db
+def test_section_and_fixed_chunks_of_one_document_live_side_by_side(pool):
+    # Bài 9 indexes the same documents with both strategies to compare them.
+    ingest_document(request(), FakeResources(settings(chunk_strategy="section"), pool=pool))
+    ingest_document(request(), FakeResources(settings(chunk_strategy="fixed"), pool=pool))
+    strategies = rows(FakeResources(settings(), pool=pool), "SELECT DISTINCT strategy FROM chunks ORDER BY 1")
+    assert strategies == [("fixed",), ("section",)]
 
 
 # --- delete_document -----------------------------------------------------------

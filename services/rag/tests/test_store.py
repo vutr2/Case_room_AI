@@ -1,4 +1,4 @@
-"""Tests for replace_document_chunks and delete_document_chunks.
+"""Tests for replace_chunks and delete_chunks.
 
 Each test runs in its own empty Postgres schema (the `conn` fixture in conftest.py).
 """
@@ -13,9 +13,9 @@ from app.ingest.chunking import Chunk, chunk_by_section
 from app.schemas import IngestDocument
 from app.store.chunks import (
     DocumentRef,
-    delete_document_chunks,
+    delete_chunks,
     ensure_schema,
-    replace_document_chunks,
+    replace_chunks,
 )
 
 from .fakes import fake_embed
@@ -48,7 +48,7 @@ def ref(case_room_id: str = "case-1", doc_id: str = "doc-1") -> DocumentRef:
 def store(conn, r: DocumentRef, doc: IngestDocument, strategy: str = "section", target: int = 80) -> int:
     """Chunk the document, embed with the fake, and replace its chunks."""
     chunks = chunk_by_section(doc.text, target)
-    return replace_document_chunks(conn, r, doc, strategy, chunks, fake_embed([c.text for c in chunks]))
+    return replace_chunks(conn, r, doc, chunks, fake_embed([c.text for c in chunks]), strategy)
 
 
 def count(conn, where: str = "TRUE", params: tuple = ()) -> int:
@@ -61,7 +61,7 @@ def db(conn):
     return conn
 
 
-# --- replace_document_chunks: what gets written --------------------------------
+# --- replace_chunks: what gets written --------------------------------
 
 
 def test_inserts_every_chunk_and_returns_how_many(db):
@@ -118,7 +118,7 @@ def test_the_chunks_are_committed(db, db_url, db_schema):
         assert count(other) == len(chunk_by_section(REPORT, 80))
 
 
-# --- replace_document_chunks: replacing ----------------------------------------
+# --- replace_chunks: replacing ----------------------------------------
 
 
 def test_storing_the_same_document_twice_does_not_duplicate(db):
@@ -135,7 +135,7 @@ def test_a_shorter_new_version_leaves_no_old_parts_behind(db):
 
 def test_replacing_with_no_chunks_removes_the_document(db):
     store(db, ref(), document())
-    assert replace_document_chunks(db, ref(), document(), "section", [], fake_embed([])) == 0
+    assert replace_chunks(db, ref(), document(), [], fake_embed([]), "section") == 0
     assert count(db) == 0
 
 
@@ -147,13 +147,13 @@ def test_only_the_given_strategy_is_replaced(db):
     assert count(db, "strategy = 'fixed'") == n_fixed
 
 
-# --- replace_document_chunks: tenant isolation ---------------------------------
+# --- replace_chunks: tenant isolation ---------------------------------
 
 
 def test_the_same_document_id_in_another_case_room_is_untouched(db):
     n = store(db, ref(case_room_id="case-2"), document())
     store(db, ref(case_room_id="case-1"), document())
-    replace_document_chunks(db, ref(case_room_id="case-1"), document(), "section", [], fake_embed([]))
+    replace_chunks(db, ref(case_room_id="case-1"), document(), [], fake_embed([]), "section")
     assert count(db, "case_room_id = %s", ("case-2",)) == n
     assert count(db, "case_room_id = %s", ("case-1",)) == 0
 
@@ -164,29 +164,29 @@ def test_another_document_in_the_same_case_room_is_untouched(db):
     assert count(db, "source_id = %s", ("doc-2",)) == n
 
 
-# --- replace_document_chunks: bad input changes nothing ------------------------
+# --- replace_chunks: bad input changes nothing ------------------------
 
 
 def test_wrong_number_of_vectors_is_rejected_before_touching_the_database(db):
     n = store(db, ref(), document())
     chunks = chunk_by_section(REPORT, 80)
     with pytest.raises(ValueError):
-        replace_document_chunks(db, ref(), document(), "section", chunks, fake_embed(["only one"]))
+        replace_chunks(db, ref(), document(), chunks, fake_embed(["only one"]), "section")
     assert count(db) == n
 
 
 def test_vectors_of_the_wrong_dimension_are_rejected(db):
     chunks = chunk_by_section(REPORT, 80)
     with pytest.raises(ValueError):
-        replace_document_chunks(db, ref(), document(), "section", chunks, fake_embed([c.text for c in chunks], dim=768))
+        replace_chunks(db, ref(), document(), chunks, fake_embed([c.text for c in chunks], dim=768), "section")
     assert count(db) == 0
 
 
 def test_a_ref_for_another_document_is_rejected(db):
     chunks = chunk_by_section(REPORT, 80)
     with pytest.raises(ValueError):
-        replace_document_chunks(
-            db, ref(doc_id="doc-1"), document(doc_id="doc-2"), "section", chunks, fake_embed([c.text for c in chunks])
+        replace_chunks(
+            db, ref(doc_id="doc-1"), document(doc_id="doc-2"), chunks, fake_embed([c.text for c in chunks]), "section"
         )
     assert count(db) == 0
 
@@ -202,29 +202,29 @@ def test_a_failing_insert_rolls_back_and_keeps_the_old_chunks(db):
         Chunk(part=None, parts=2, start=5, end=10, section=None, text="ĐOÁN"),  # type: ignore[arg-type]
     ]
     with pytest.raises(errors.NotNullViolation):
-        replace_document_chunks(db, ref(), document(), "section", broken, fake_embed(["CHẨN", "ĐOÁN"]))
+        replace_chunks(db, ref(), document(), broken, fake_embed(["CHẨN", "ĐOÁN"]), "section")
 
     assert db.execute("SELECT text FROM chunks ORDER BY part").fetchall() == old
 
 
-# --- delete_document_chunks ---------------------------------------------------
+# --- delete_chunks ---------------------------------------------------
 
 
 def test_delete_removes_every_strategy_and_returns_how_many(db):
     n_section = store(db, ref(), document(), strategy="section")
     n_fixed = store(db, ref(), document(), strategy="fixed")
-    assert delete_document_chunks(db, ref()) == n_section + n_fixed
+    assert delete_chunks(db, ref()) == n_section + n_fixed
     assert count(db) == 0
 
 
 def test_deleting_twice_is_not_an_error(db):
     store(db, ref(), document())
-    delete_document_chunks(db, ref())
-    assert delete_document_chunks(db, ref()) == 0
+    delete_chunks(db, ref())
+    assert delete_chunks(db, ref()) == 0
 
 
 def test_deleting_an_unknown_document_returns_zero(db):
-    assert delete_document_chunks(db, ref(doc_id="never-stored")) == 0
+    assert delete_chunks(db, ref(doc_id="never-stored")) == 0
 
 
 def test_delete_leaves_other_case_rooms_and_documents_alone(db):
@@ -232,7 +232,7 @@ def test_delete_leaves_other_case_rooms_and_documents_alone(db):
     n_other_case = store(db, ref(case_room_id="case-2", doc_id="doc-1"), document(doc_id="doc-1"))
     n_other_doc = store(db, ref(case_room_id="case-1", doc_id="doc-2"), document(doc_id="doc-2"))
 
-    delete_document_chunks(db, ref(case_room_id="case-1", doc_id="doc-1"))
+    delete_chunks(db, ref(case_room_id="case-1", doc_id="doc-1"))
 
     assert count(db) == n_other_case + n_other_doc
     assert count(db, "case_room_id = 'case-1' AND source_id = 'doc-1'") == 0
@@ -240,7 +240,7 @@ def test_delete_leaves_other_case_rooms_and_documents_alone(db):
 
 def test_the_delete_is_committed(db, db_url, db_schema):
     store(db, ref(), document())
-    delete_document_chunks(db, ref())
+    delete_chunks(db, ref())
     with connect_to(db_url, db_schema) as other:
         assert count(other) == 0
 
@@ -254,5 +254,5 @@ def test_delete_never_touches_shared_guidelines(db):
         (fake_embed(["HER2"])[0],),
     )
     store(db, ref(), document())
-    delete_document_chunks(db, ref())
+    delete_chunks(db, ref())
     assert count(db, "kind = 'guideline'") == 1

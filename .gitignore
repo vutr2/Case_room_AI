@@ -40,3 +40,6 @@ coverage/
 
 # Emails written by EMAIL_TRANSPORT=file without EMAIL_OUTBOX_DIR
 email-outbox/
+
+# Personal study notes for the RAG service; not part of the project.
+services/rag/Handout*.md

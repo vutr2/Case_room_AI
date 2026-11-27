@@ -7,6 +7,12 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
 class Settings(BaseSettings):
+    """Every setting of the RAG service, read from environment variables or services/rag/.env.
+
+    Field names map to upper-case variables: rag_database_url <- RAG_DATABASE_URL.
+    SecretStr fields hide their value in logs and reprs; read them with .get_secret_value().
+    """
+
     model_config = SettingsConfigDict(env_file=".env", extra="ignore")
 
     # Shared secret the web app sends as "Authorization: Bearer <token>".
@@ -30,7 +36,7 @@ class Settings(BaseSettings):
     chunk_target_chars: int = 1000
     retrieval_mode: Literal["bm25", "dense", "hybrid", "hybrid_rerank"] = "hybrid_rerank"
     candidate_pool: int = 50
-    rerank_candiates: int = 20
+    rerank_candidates: int = 20
     rrf_k: int = 60
     weight_bm25: float = 1.0
     weight_dense: float = 1.0

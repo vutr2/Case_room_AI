@@ -23,14 +23,19 @@ def fake_embed(texts: Sequence[str], dim: int = DIM) -> np.ndarray:
 
 
 class FakeEmbedder:
-    """An Embedder (app.ingest.embedding) that uses fake_embed and records every call."""
+    """An Embedder (app.ingest.embeddings) that uses fake_embed and records every call."""
+
+    dim = DIM
 
     def __init__(self) -> None:
         self.calls: list[list[str]] = []
 
-    def embed(self, texts: Sequence[str]) -> np.ndarray:
+    def embed_documents(self, texts: Sequence[str]) -> np.ndarray:
         self.calls.append(list(texts))
         return fake_embed(texts)
+
+    def embed_query(self, text: str) -> np.ndarray:
+        return self.embed_documents([text])[0]
 
 
 class FakeResources:

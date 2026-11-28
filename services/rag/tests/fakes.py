@@ -5,6 +5,8 @@ from collections.abc import Sequence
 
 import numpy as np
 
+from app.text import tokenize
+
 DIM = 1024
 
 
@@ -36,6 +38,27 @@ class FakeEmbedder:
 
     def embed_query(self, text: str) -> np.ndarray:
         return self.embed_documents([text])[0]
+
+
+class FakeReranker:
+    """A Reranker (app.retrieval.rerank) that scores by word overlap, and records every call.
+
+    The score is the Jaccard index of the two token sets: |shared words| / |all words|.
+    It lies in [0, 1] like the real reranker's, and is 1 only when both use the same words.
+    """
+
+    def __init__(self) -> None:
+        self.calls: list[tuple[str, list[str]]] = []
+
+    def score(self, query: str, texts: Sequence[str]) -> list[float]:
+        self.calls.append((query, list(texts)))
+        query_words = set(tokenize(query))
+        scores = []
+        for text in texts:
+            words = set(tokenize(text))
+            union = query_words | words
+            scores.append(len(query_words & words) / len(union) if union else 0.0)
+        return scores
 
 
 class FakeResources:

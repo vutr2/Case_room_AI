@@ -114,6 +114,26 @@ class Resources:
 
         return self._reranker
 
+    def with_settings(self, settings: Settings) -> Resources:
+        """A copy that uses `settings` but shares this object's pool and loaded models.
+
+        For the evals, which run the same questions under several retrieval modes:
+        each mode needs its own settings, but loading bge-m3 and the reranker once is
+        enough. Load what you need on this object first (pool(), embedder(),
+        reranker()); a model the copy loads later is not shared back.
+
+        Only settings that pick a retrieval behaviour may differ. A different database
+        or model would silently use the shared ones, so it is refused.
+        Close only the original: the copy shares its pool.
+        """
+        for name in ("rag_database_url", "embedding_model", "reranker_model", "model_device"):
+            if getattr(settings, name) != getattr(self._settings, name):
+                raise ValueError(f"with_settings cannot change {name}: the copy shares the loaded one")
+        copy = Resources(settings)
+        copy._pool, copy._embedder, copy._reranker = self._pool, self._embedder, self._reranker
+        copy._lock = self._lock
+        return copy
+
     def close(self) -> None:
         """Close the database pool, if one was opened. Called when the server stops.
 

@@ -1,4 +1,3 @@
-
 from psycopg import Connection
 
 from ..ingest.embeddings import Embedder

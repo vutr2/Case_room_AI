@@ -31,15 +31,5 @@ def test_requests_with_unknown_fields_are_rejected(client, auth):
     assert client.post("/v1/retrieve", json=body, headers=auth).status_code == 422
 
 
-# Replace this test with real ones as you build each endpoint.
-# /v1/ingest and DELETE are built: their tests are in tests/test_ingest.py.
-@pytest.mark.parametrize(
-    ("method", "path", "body"),
-    [
-        ("POST", "/v1/retrieve", "retrieve-request"),
-    ],
-)
-def test_endpoints_not_built_yet_answer_501(client, auth, method, path, body):
-    response = client.request(method, path, json=example(body) if body else None, headers=auth)
-    assert response.status_code == 501
-    assert "not built yet" in response.json()["detail"]
+# Every endpoint is built: /v1/ingest and DELETE are tested in tests/test_ingest.py,
+# /v1/retrieve in tests/test_retrieve.py.

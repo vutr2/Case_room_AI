@@ -255,3 +255,44 @@ def test_real_pool_creates_the_chunks_table(db_url: str, db_schema: str) -> None
         resources.close()
 
     assert found is not None
+
+
+# --- with_settings -------------------------------------------------------------------
+
+
+def test_with_settings_shares_the_pool_and_loaded_models(fake_pool, fake_embedder_class) -> None:
+    base = Resources(make_settings())
+    pool, embedder = base.pool(), base.embedder()
+
+    copy = base.with_settings(make_settings(retrieval_mode="bm25", rrf_k=10))
+
+    assert copy.settings.retrieval_mode == "bm25"
+    assert copy.settings.rrf_k == 10
+    assert copy.pool() is pool
+    assert copy.embedder() is embedder
+    assert len(fake_pool) == 1
+    assert len(fake_embedder_class) == 1
+
+
+def test_with_settings_leaves_the_original_settings_alone(fake_pool) -> None:
+    base = Resources(make_settings(retrieval_mode="hybrid"))
+
+    base.with_settings(make_settings(retrieval_mode="dense"))
+
+    assert base.settings.retrieval_mode == "hybrid"
+
+
+@pytest.mark.parametrize(
+    "change",
+    [
+        {"rag_database_url": "postgresql://other/db"},
+        {"embedding_model": "other/model"},
+        {"reranker_model": "other/reranker"},
+        {"model_device": "cpu"},
+    ],
+)
+def test_with_settings_refuses_a_different_database_or_model(fake_pool, change) -> None:
+    base = Resources(make_settings())
+
+    with pytest.raises(ValueError, match="with_settings cannot change"):
+        base.with_settings(make_settings(**change))
